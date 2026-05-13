@@ -11,7 +11,7 @@ const cards = [
     title: "4Seas",
     description: "A cultural hub in Chiang Mai, rooted in Ethereum and part of the Zuzalu Movement. We are actively building the future of community, work, and coordination, leveraging decentralized technologies to do so — where these pioneering concepts seamlessly transition into a lived, daily reality.",
     cta: "Visit 4Seas Website",
-    link: "https://4seas.xyz"
+    link: "https://www.4seas.xyz"
   },
   {
     title: "About ETHChiangmai",

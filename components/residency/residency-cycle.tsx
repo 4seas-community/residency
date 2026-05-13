@@ -5,6 +5,7 @@ import { useInView } from "framer-motion"
 import { useRef } from "react"
 import { Calendar, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { withBasePath } from "@/lib/paths"
 
 export function ResidencyCycle() {
   const ref = useRef(null)
@@ -64,7 +65,7 @@ export function ResidencyCycle() {
             className="w-full md:w-auto rounded-full group"
             asChild
           >
-            <a href="/residency/apply">
+            <a href={withBasePath("/apply")}>
               Apply Now
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </a>

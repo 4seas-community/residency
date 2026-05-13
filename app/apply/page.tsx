@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { withBasePath } from "@/lib/paths"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
 
 const preferredDates = [
   "May 15, 2026",
@@ -70,31 +70,35 @@ export default function ApplyPage() {
     setErrorMessage("")
     
     try {
-      const supabase = createClient()
-      
-      const { error } = await supabase
-        .from("residency_applications")
-        .insert({
-          full_name: formData.fullName,
+      const response = await fetch(withBasePath("/api/applications"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fullName: formData.fullName,
           email: formData.email,
-          contact_info: formData.contactInfo,
-          nationality: null,
-          current_location: null,
-          preferred_start_date: formData.preferredStartDate,
-          about_and_contribution: formData.aboutAndContribution,
-          social_links: formData.socialLinks,
-          linkedin_link: formData.linkedinLink || null,
-          github_link: formData.githubLink || null,
-          content_studio_plans: formData.contentStudioPlans || null,
-        })
-      
-      if (error) throw error
+          contactInfo: formData.contactInfo,
+          preferredStartDate: formData.preferredStartDate,
+          aboutAndContribution: formData.aboutAndContribution,
+          socialLinks: formData.socialLinks,
+          linkedinLink: formData.linkedinLink,
+          githubLink: formData.githubLink,
+          contentStudioPlans: formData.contentStudioPlans,
+        }),
+      })
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => null) as { error?: string } | null
+        throw new Error(result?.error || "Unable to submit application")
+      }
       
       setSubmitStatus("success")
-    } catch (error) {
-      console.error("Submission error:", error)
+    } catch (error: unknown) {
+      console.error("[v0] Submission error:", error)
+      const errorMsg = error instanceof Error ? error.message : "Unknown error"
       setSubmitStatus("error")
-      setErrorMessage("Failed to submit application. Please try again.")
+      setErrorMessage(`Failed to submit application: ${errorMsg}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -147,7 +151,7 @@ export default function ApplyPage() {
               Program Information
             </a>
           </div>
-          <img src="/residency/images/4seas-logo.png" alt="4Seas" className="h-8 w-auto" />
+          <img src={withBasePath("/images/4seas-logo.png")} alt="4Seas" className="h-8 w-auto" />
         </div>
       </header>
 

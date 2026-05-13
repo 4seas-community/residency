@@ -1,14 +1,16 @@
 "use client"
 
+import { withBasePath } from "@/lib/paths"
+
 export function Footer() {
   return (
     <footer className="py-12 px-4 md:px-8 border-t border-border">
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3 md:gap-4 flex-wrap justify-center">
-            <a href="https://4seas.xyz/" target="_blank" rel="noopener noreferrer">
+            <a href="https://www.4seas.xyz/" target="_blank" rel="noopener noreferrer">
               <img 
-                src="/residency/images/4seas-logo.png" 
+                src={withBasePath("/images/4seas-logo.png")}
                 alt="4Seas" 
                 className="h-7 w-auto"
               />
@@ -16,7 +18,7 @@ export function Footer() {
             <span className="text-muted-foreground/50">|</span>
             <a href="https://www.zuzalu.city/" target="_blank" rel="noopener noreferrer">
               <img 
-                src="/residency/images/zuzalu-library-logo.png" 
+                src={withBasePath("/images/zuzalu-library-logo.png")}
                 alt="Zuzalu Library" 
                 className="h-7 w-auto"
               />
@@ -24,7 +26,7 @@ export function Footer() {
             <span className="text-muted-foreground/50">|</span>
             <a href="https://www.ethchiangmai.com" target="_blank" rel="noopener noreferrer">
               <img 
-                src="/residency/images/ethchiangmai-logo.png" 
+                src={withBasePath("/images/ethchiangmai-logo.png")}
                 alt="ETHChiangmai" 
                 className="h-5 w-auto"
               />
@@ -33,7 +35,7 @@ export function Footer() {
           
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <a 
-              href="https://4seas.xyz/" 
+              href="https://www.4seas.xyz/" 
               target="_blank" 
               rel="noopener noreferrer"
               className="hover:text-foreground transition-colors"

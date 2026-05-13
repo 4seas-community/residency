@@ -3,6 +3,7 @@
 import { motion } from "framer-motion"
 import { ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { withBasePath } from "@/lib/paths"
 
 export function Hero() {
   return (
@@ -14,9 +15,9 @@ export function Hero() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <a href="https://4seas.xyz/" target="_blank" rel="noopener noreferrer">
+        <a href="https://www.4seas.xyz/" target="_blank" rel="noopener noreferrer">
           <img 
-            src="/residency/images/4seas-logo.png" 
+            src={withBasePath("/images/4seas-logo.png")}
             alt="4Seas" 
             className="h-10 md:h-12 w-auto"
           />
@@ -32,7 +33,7 @@ export function Hero() {
           transition={{ duration: 1.5, ease: "easeOut" }}
         >
           <img 
-            src="/residency/images/hero-bg.png" 
+            src={withBasePath("/images/hero-bg.png")}
             alt="" 
             className="w-full h-full object-cover"
           />
@@ -85,7 +86,7 @@ export function Hero() {
             className="text-lg px-8 py-6 h-auto rounded-full group hover:scale-105 transition-transform"
             asChild
           >
-            <a href="/residency/apply" className="flex items-center">
+            <a href={withBasePath("/apply")} className="flex items-center">
               Apply Now
               <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
             </a>

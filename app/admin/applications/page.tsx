@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Download, LogOut, RefreshCw, Users, Calendar, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { createClient } from "@/lib/supabase/client"
+import { withBasePath } from "@/lib/paths"
 import Link from "next/link"
 
 interface Application {
@@ -14,8 +14,6 @@ interface Application {
   full_name: string
   email: string
   contact_info: string | null
-  nationality: string | null
-  current_location: string | null
   preferred_start_date: string
   about_and_contribution: string
   social_links: string
@@ -31,38 +29,37 @@ export default function AdminApplicationsPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const router = useRouter()
 
-  useEffect(() => {
-    // Check authentication
-    const auth = sessionStorage.getItem("admin_authenticated")
-    if (auth !== "true") {
-      router.push("/admin")
-      return
-    }
-    setIsAuthenticated(true)
-    fetchApplications()
-  }, [router])
-
-  const fetchApplications = async () => {
+  const fetchApplications = useCallback(async () => {
     setIsLoading(true)
     try {
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from("residency_applications")
-        .select("*")
-        .order("created_at", { ascending: false })
+      const response = await fetch(withBasePath("/api/admin/applications"), { cache: "no-store" })
 
-      if (error) throw error
-      setApplications(data || [])
+      if (response.status === 401) {
+        router.replace(withBasePath("/admin"))
+        return
+      }
+      if (!response.ok) {
+        const result = await response.json().catch(() => null) as { error?: string } | null
+        throw new Error(result?.error || "Unable to load applications")
+      }
+
+      const result = await response.json() as { applications: Application[] }
+      setApplications(result.applications)
+      setIsAuthenticated(true)
     } catch (error) {
       console.error("Error fetching applications:", error)
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [router])
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("admin_authenticated")
-    router.push("/admin")
+  useEffect(() => {
+    void fetchApplications()
+  }, [fetchApplications])
+
+  const handleLogout = async () => {
+    await fetch(withBasePath("/api/admin/logout"), { method: "POST" })
+    router.push(withBasePath("/admin"))
   }
 
   const exportToCSV = () => {
@@ -119,7 +116,7 @@ export default function AdminApplicationsPage() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/">
-              <img src="/residency/images/4seas-logo.png" alt="4Seas" className="h-8 w-auto" />
+              <img src={withBasePath("/images/4seas-logo.png")} alt="4Seas" className="h-8 w-auto" />
             </Link>
             <span className="text-muted-foreground">/</span>
             <h1 className="font-medium text-foreground">Applications Dashboard</h1>

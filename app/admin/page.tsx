@@ -7,9 +7,8 @@ import { Lock, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { withBasePath } from "@/lib/paths"
 import Link from "next/link"
-
-const ADMIN_PASSWORD = "bofbak-sabpuG-supwu"
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState("")
@@ -22,16 +21,27 @@ export default function AdminLoginPage() {
     setIsLoading(true)
     setError("")
 
-    // Simple password check
-    if (password === ADMIN_PASSWORD) {
-      // Store in sessionStorage for the session
-      sessionStorage.setItem("admin_authenticated", "true")
-      router.push("/admin/applications")
-    } else {
-      setError("Incorrect password")
+    try {
+      const response = await fetch(withBasePath("/api/admin/login"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ password }),
+      })
+
+      if (response.ok) {
+        router.push(withBasePath("/admin/applications"))
+        return
+      }
+
+      const result = await response.json().catch(() => null) as { error?: string } | null
+      setError(result?.error || "Incorrect password")
+    } catch {
+      setError("Unable to verify password")
+    } finally {
+      setIsLoading(false)
     }
-    
-    setIsLoading(false)
   }
 
   return (

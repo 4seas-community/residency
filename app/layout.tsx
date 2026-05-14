@@ -12,19 +12,21 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: withBasePath('/icon-light-32x32.png'),
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: withBasePath('/icon-dark-32x32.png'),
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: withBasePath('/icon.svg'),
-        type: 'image/svg+xml',
+        url: withBasePath('/images/favicon.jpg'),
+        type: 'image/x-icon',
       },
     ],
-    apple: withBasePath('/apple-icon.png'),
+    shortcut: [
+      {
+        url: withBasePath('/images/favicon.jpg'),
+        type: 'image/x-icon',
+      },
+    ],
+    apple: [
+      {
+        url: withBasePath('/images/webclip.jpg'),
+      },
+    ],
   },
 }
 

@@ -1,26 +1,9 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <style>
-    @media (prefers-color-scheme: light) {
-      .background { fill: black; }
-      .foreground { fill: white; }
-    }
-    @media (prefers-color-scheme: dark) {
-      .background { fill: white; }
-      .foreground { fill: black; }
-    }
-  </style>
-  <g clip-path="url(#clip0_7960_43945)">
-    <rect class="background" width="180" height="180" rx="37" />
-    <g style="transform: scale(95%); transform-origin: center">
-      <path class="foreground"
-        d="M101.141 53H136.632C151.023 53 162.689 64.6662 162.689 79.0573V112.904H148.112V79.0573C148.112 78.7105 148.098 78.3662 148.072 78.0251L112.581 112.898C112.701 112.902 112.821 112.904 112.941 112.904H148.112V126.672H112.941C98.5504 126.672 86.5638 114.891 86.5638 100.5V66.7434H101.141V100.5C101.141 101.15 101.191 101.792 101.289 102.422L137.56 66.7816C137.255 66.7563 136.945 66.7434 136.632 66.7434H101.141V53Z" />
-      <path class="foreground"
-        d="M65.2926 124.136L14 66.7372H34.6355L64.7495 100.436V66.7372H80.1365V118.47C80.1365 126.278 70.4953 129.958 65.2926 124.136Z" />
-    </g>
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="4Seas favicon">
+  <title>4Seas favicon</title>
+  <g fill="#007A5E">
+    <path d="M82 22C57.7 22 38 41.7 38 66C38 77.6 47.4 87 59 87H76C84.3 87 91 80.3 91 72V31C91 26 87 22 82 22Z"/>
+    <path d="M98 22C122.3 22 142 41.7 142 66C142 77.6 132.6 87 121 87H104C95.7 87 89 80.3 89 72V31C89 26 93 22 98 22Z"/>
+    <path d="M82 158C57.7 158 38 138.3 38 114C38 102.4 47.4 93 59 93H76C84.3 93 91 99.7 91 108V149C91 154 87 158 82 158Z"/>
+    <path d="M98 158C122.3 158 142 138.3 142 114C142 102.4 132.6 93 121 93H104C95.7 93 89 99.7 89 108V149C89 154 93 158 98 158Z"/>
   </g>
-  <defs>
-    <clipPath id="clip0_7960_43945">
-      <rect width="180" height="180" fill="white" />
-    </clipPath>
-  </defs>
 </svg>

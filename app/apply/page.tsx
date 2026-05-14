@@ -142,14 +142,6 @@ export default function ApplyPage() {
               <ArrowLeft className="w-4 h-4" />
               <span>Back</span>
             </Link>
-            <a 
-              href="https://v0-4seas-crypto-residency.vercel.app/" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-sm text-primary hover:underline"
-            >
-              Program Information
-            </a>
           </div>
           <img src={withBasePath("/images/4seas-logo.png")} alt="4Seas" className="h-8 w-auto" />
         </div>

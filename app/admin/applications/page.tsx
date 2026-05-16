@@ -35,7 +35,7 @@ export default function AdminApplicationsPage() {
       const response = await fetch(withBasePath("/api/admin/applications"), { cache: "no-store" })
 
       if (response.status === 401) {
-        router.replace(withBasePath("/admin"))
+        router.replace("/admin")
         return
       }
       if (!response.ok) {
@@ -59,7 +59,7 @@ export default function AdminApplicationsPage() {
 
   const handleLogout = async () => {
     await fetch(withBasePath("/api/admin/logout"), { method: "POST" })
-    router.push(withBasePath("/admin"))
+    router.push("/admin")
   }
 
   const exportToCSV = () => {

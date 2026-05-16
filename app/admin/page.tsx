@@ -31,7 +31,7 @@ export default function AdminLoginPage() {
       })
 
       if (response.ok) {
-        router.push(withBasePath("/admin/applications"))
+        router.push("/admin/applications")
         return
       }
 

@@ -3,10 +3,23 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { Download, LogOut, RefreshCw, Users, Calendar, Mail } from "lucide-react"
+import {
+  Calendar,
+  CheckCircle,
+  Clock,
+  Download,
+  LogOut,
+  RefreshCw,
+  Save,
+  Users,
+  XCircle,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 import { withBasePath } from "@/lib/paths"
 import Link from "next/link"
+
+type StatusType = "pending" | "approved" | "rejected"
 
 interface Application {
   id: string
@@ -20,13 +33,41 @@ interface Application {
   linkedin_link: string | null
   github_link: string | null
   content_studio_plans: string | null
-  status: string
+  status: StatusType | string
+  admin_notes: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+}
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case "approved":
+      return "bg-green-100 text-green-800 border-green-200"
+    case "rejected":
+      return "bg-red-100 text-red-800 border-red-200"
+    default:
+      return "bg-yellow-100 text-yellow-800 border-yellow-200"
+  }
+}
+
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case "approved":
+      return "Approved"
+    case "rejected":
+      return "Rejected"
+    default:
+      return "Pending"
+  }
 }
 
 export default function AdminApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [editingNotes, setEditingNotes] = useState<Record<string, string>>({})
+  const [savingId, setSavingId] = useState<string | null>(null)
+  const [rowError, setRowError] = useState<Record<string, string>>({})
   const router = useRouter()
 
   const fetchApplications = useCallback(async () => {
@@ -46,6 +87,13 @@ export default function AdminApplicationsPage() {
       const result = await response.json() as { applications: Application[] }
       setApplications(result.applications)
       setIsAuthenticated(true)
+
+      const notes: Record<string, string> = {}
+      result.applications.forEach(app => {
+        notes[app.id] = app.admin_notes || ""
+      })
+      setEditingNotes(notes)
+      setRowError({})
     } catch (error) {
       console.error("Error fetching applications:", error)
     } finally {
@@ -56,6 +104,52 @@ export default function AdminApplicationsPage() {
   useEffect(() => {
     void fetchApplications()
   }, [fetchApplications])
+
+  const mergeUpdate = (updated: Application) => {
+    setApplications(apps => apps.map(app => (app.id === updated.id ? updated : app)))
+    setEditingNotes(prev => ({ ...prev, [updated.id]: updated.admin_notes || "" }))
+  }
+
+  const sendReviewUpdate = async (id: string, body: { status?: StatusType; adminNotes?: string }) => {
+    setSavingId(id)
+    setRowError(prev => {
+      const { [id]: _, ...rest } = prev
+      return rest
+    })
+    try {
+      const response = await fetch(withBasePath(`/api/admin/applications/${id}`), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+
+      if (response.status === 401) {
+        router.replace("/admin")
+        return
+      }
+      if (!response.ok) {
+        const result = await response.json().catch(() => null) as { error?: string } | null
+        throw new Error(result?.error || "Unable to update application")
+      }
+
+      const result = await response.json() as { application: Application }
+      mergeUpdate(result.application)
+    } catch (error) {
+      console.error("Error updating application:", error)
+      setRowError(prev => ({
+        ...prev,
+        [id]: error instanceof Error ? error.message : "Update failed",
+      }))
+    } finally {
+      setSavingId(null)
+    }
+  }
+
+  const updateStatus = (id: string, newStatus: StatusType) =>
+    sendReviewUpdate(id, { status: newStatus })
+
+  const saveNotes = (id: string) =>
+    sendReviewUpdate(id, { adminNotes: editingNotes[id] ?? "" })
 
   const handleLogout = async () => {
     await fetch(withBasePath("/api/admin/logout"), { method: "POST" })
@@ -77,7 +171,10 @@ export default function AdminApplicationsPage() {
       "LinkedIn",
       "GitHub",
       "Content Studio Plans",
-      "Status"
+      "Status",
+      "Admin Notes",
+      "Reviewed By",
+      "Reviewed At",
     ]
 
     const csvContent = [
@@ -94,7 +191,10 @@ export default function AdminApplicationsPage() {
         `"${(app.linkedin_link || '').replace(/"/g, '""')}"`,
         `"${(app.github_link || '').replace(/"/g, '""')}"`,
         `"${(app.content_studio_plans || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
-        app.status
+        app.status,
+        `"${(app.admin_notes || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
+        app.reviewed_by || '',
+        app.reviewed_at ? new Date(app.reviewed_at).toLocaleString() : '',
       ].join(","))
     ].join("\n")
 
@@ -108,6 +208,15 @@ export default function AdminApplicationsPage() {
   if (!isAuthenticated) {
     return null
   }
+
+  const pendingCount = applications.filter(app => app.status === "pending").length
+  const approvedCount = applications.filter(app => app.status === "approved").length
+  const rejectedCount = applications.filter(app => app.status === "rejected").length
+  const thisMonthCount = applications.filter(app => {
+    const date = new Date(app.created_at)
+    const now = new Date()
+    return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
+  }).length
 
   return (
     <div className="min-h-screen bg-background">
@@ -140,15 +249,48 @@ export default function AdminApplicationsPage() {
 
       {/* Stats */}
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
           <div className="bg-card border border-border rounded-xl p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg">
                 <Users className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Applications</p>
+                <p className="text-sm text-muted-foreground">Total</p>
                 <p className="text-2xl font-semibold text-foreground">{applications.length}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <Clock className="w-5 h-5 text-yellow-700" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Pending</p>
+                <p className="text-2xl font-semibold text-foreground">{pendingCount}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-green-700" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Approved</p>
+                <p className="text-2xl font-semibold text-foreground">{approvedCount}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <XCircle className="w-5 h-5 text-red-700" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Rejected</p>
+                <p className="text-2xl font-semibold text-foreground">{rejectedCount}</p>
               </div>
             </div>
           </div>
@@ -159,26 +301,7 @@ export default function AdminApplicationsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">This Month</p>
-                <p className="text-2xl font-semibold text-foreground">
-                  {applications.filter(app => {
-                    const date = new Date(app.created_at)
-                    const now = new Date()
-                    return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
-                  }).length}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-card border border-border rounded-xl p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Mail className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Pending Review</p>
-                <p className="text-2xl font-semibold text-foreground">
-                  {applications.filter(app => app.status === "pending").length}
-                </p>
+                <p className="text-2xl font-semibold text-foreground">{thisMonthCount}</p>
               </div>
             </div>
           </div>
@@ -210,15 +333,9 @@ export default function AdminApplicationsPage() {
                     <h3 className="text-lg font-semibold text-foreground">{app.full_name}</h3>
                     <p className="text-muted-foreground">{app.email}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      app.status === "pending" 
-                        ? "bg-yellow-100 text-yellow-800" 
-                        : app.status === "approved" 
-                        ? "bg-green-100 text-green-800" 
-                        : "bg-red-100 text-red-800"
-                    }`}>
-                      {app.status}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(app.status)}`}>
+                      {getStatusLabel(app.status)}
                     </span>
                     <span className="text-sm text-muted-foreground">
                       {new Date(app.created_at).toLocaleDateString()}
@@ -256,9 +373,9 @@ export default function AdminApplicationsPage() {
                     {app.linkedin_link && (
                       <div>
                         <p className="text-sm text-muted-foreground mb-1">LinkedIn</p>
-                        <a 
-                          href={app.linkedin_link.startsWith('http') ? app.linkedin_link : `https://${app.linkedin_link}`} 
-                          target="_blank" 
+                        <a
+                          href={app.linkedin_link.startsWith('http') ? app.linkedin_link : `https://${app.linkedin_link}`}
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm text-primary hover:underline bg-muted/50 rounded-lg p-3 block"
                         >
@@ -269,9 +386,9 @@ export default function AdminApplicationsPage() {
                     {app.github_link && (
                       <div>
                         <p className="text-sm text-muted-foreground mb-1">GitHub</p>
-                        <a 
-                          href={app.github_link.startsWith('http') ? app.github_link : `https://${app.github_link}`} 
-                          target="_blank" 
+                        <a
+                          href={app.github_link.startsWith('http') ? app.github_link : `https://${app.github_link}`}
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm text-primary hover:underline bg-muted/50 rounded-lg p-3 block"
                         >
@@ -288,6 +405,75 @@ export default function AdminApplicationsPage() {
                       </p>
                     </div>
                   )}
+                </div>
+
+                {/* Admin Review Section */}
+                <div className="mt-6 pt-6 border-t border-border">
+                  <h4 className="text-sm font-medium text-foreground mb-4">Admin Review</h4>
+
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <Button
+                      size="sm"
+                      variant={app.status === "pending" ? "default" : "outline"}
+                      onClick={() => updateStatus(app.id, "pending")}
+                      disabled={savingId === app.id}
+                      className={app.status === "pending" ? "bg-yellow-600 hover:bg-yellow-700" : ""}
+                    >
+                      <Clock className="w-4 h-4 mr-1" />
+                      Pending
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={app.status === "approved" ? "default" : "outline"}
+                      onClick={() => updateStatus(app.id, "approved")}
+                      disabled={savingId === app.id}
+                      className={app.status === "approved" ? "bg-green-600 hover:bg-green-700" : ""}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-1" />
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={app.status === "rejected" ? "default" : "outline"}
+                      onClick={() => updateStatus(app.id, "rejected")}
+                      disabled={savingId === app.id}
+                      className={app.status === "rejected" ? "bg-red-600 hover:bg-red-700" : ""}
+                    >
+                      <XCircle className="w-4 h-4 mr-1" />
+                      Reject
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">
+                      Admin Notes (evaluation, research results, rejection reasons, etc.)
+                    </label>
+                    <Textarea
+                      value={editingNotes[app.id] ?? ""}
+                      onChange={(e) => setEditingNotes(prev => ({ ...prev, [app.id]: e.target.value }))}
+                      placeholder="Add your notes here..."
+                      rows={3}
+                      className="resize-none"
+                    />
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => saveNotes(app.id)}
+                        disabled={savingId === app.id}
+                      >
+                        <Save className="w-4 h-4 mr-1" />
+                        {savingId === app.id ? "Saving..." : "Save Notes"}
+                      </Button>
+                      {app.reviewed_by && app.reviewed_at && (
+                        <p className="text-xs text-muted-foreground">
+                          Last reviewed by {app.reviewed_by} on {new Date(app.reviewed_at).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                    {rowError[app.id] && (
+                      <p className="text-xs text-destructive">{rowError[app.id]}</p>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             ))}

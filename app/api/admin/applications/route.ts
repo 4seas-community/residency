@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { hasValidAdminSession } from "@/lib/admin-auth"
-import { listApplications } from "@/lib/applications"
+import { listAdminComments, listApplications } from "@/lib/applications"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -11,8 +11,11 @@ export async function GET() {
   }
 
   try {
-    const applications = await listApplications()
-    return NextResponse.json({ applications })
+    const [applications, comments] = await Promise.all([
+      listApplications(),
+      listAdminComments(),
+    ])
+    return NextResponse.json({ applications, comments })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load applications"
     return NextResponse.json({ error: message }, { status: 500 })

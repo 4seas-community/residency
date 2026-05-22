@@ -23,6 +23,14 @@ export interface ApplicationRecord {
   reviewed_at: string | null
 }
 
+export interface AdminCommentRecord {
+  id: string
+  application_id: string
+  reviewer_name: string
+  comment: string
+  created_at: string
+}
+
 export interface ApplicationInput {
   fullName: string
   email: string
@@ -83,6 +91,17 @@ async function ensureSchema() {
 
       create index if not exists residency_applications_created_at_idx
         on residency_applications (created_at desc);
+
+      create table if not exists admin_comments (
+        id uuid primary key,
+        application_id uuid not null references residency_applications(id) on delete cascade,
+        reviewer_name text not null,
+        comment text not null,
+        created_at timestamptz not null default now()
+      );
+
+      create index if not exists admin_comments_application_created_at_idx
+        on admin_comments (application_id, created_at desc);
     `).then(() => undefined)
   }
 
@@ -156,6 +175,79 @@ export async function listApplications() {
   `)
 
   return result.rows
+}
+
+export async function listAdminComments() {
+  await ensureSchema()
+
+  const result = await getPool().query<AdminCommentRecord>(`
+    select
+      id::text,
+      application_id::text,
+      reviewer_name,
+      comment,
+      created_at::text
+    from admin_comments
+    order by created_at desc
+  `)
+
+  return result.rows
+}
+
+export interface AdminCommentInput {
+  applicationId: string
+  reviewerName: string
+  comment: string
+}
+
+export async function createAdminComment(input: AdminCommentInput) {
+  await ensureSchema()
+
+  const result = await getPool().query<AdminCommentRecord>(
+    `
+      insert into admin_comments (
+        id,
+        application_id,
+        reviewer_name,
+        comment
+      )
+      values ($1, $2, $3, $4)
+      returning
+        id::text,
+        application_id::text,
+        reviewer_name,
+        comment,
+        created_at::text
+    `,
+    [
+      randomUUID(),
+      input.applicationId,
+      input.reviewerName.trim(),
+      input.comment.trim(),
+    ],
+  )
+
+  return result.rows[0]
+}
+
+export async function deleteAdminComment(applicationId: string, commentId: string) {
+  await ensureSchema()
+
+  const result = await getPool().query<AdminCommentRecord>(
+    `
+      delete from admin_comments
+      where id = $1 and application_id = $2
+      returning
+        id::text,
+        application_id::text,
+        reviewer_name,
+        comment,
+        created_at::text
+    `,
+    [commentId, applicationId],
+  )
+
+  return result.rows[0] ?? null
 }
 
 export interface ApplicationReviewUpdate {

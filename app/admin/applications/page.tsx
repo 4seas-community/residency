@@ -11,15 +11,19 @@ import {
   LogOut,
   RefreshCw,
   Save,
+  Search,
   Users,
   XCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { withBasePath } from "@/lib/paths"
 import Link from "next/link"
 
 type StatusType = "pending" | "approved" | "rejected"
+type StatusFilter = StatusType | "all"
 
 interface Application {
   id: string
@@ -68,6 +72,8 @@ export default function AdminApplicationsPage() {
   const [editingNotes, setEditingNotes] = useState<Record<string, string>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
   const [rowError, setRowError] = useState<Record<string, string>>({})
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const router = useRouter()
 
   const fetchApplications = useCallback(async () => {
@@ -113,8 +119,9 @@ export default function AdminApplicationsPage() {
   const sendReviewUpdate = async (id: string, body: { status?: StatusType; adminNotes?: string }) => {
     setSavingId(id)
     setRowError(prev => {
-      const { [id]: _, ...rest } = prev
-      return rest
+      const next = { ...prev }
+      delete next[id]
+      return next
     })
     try {
       const response = await fetch(withBasePath(`/api/admin/applications/${id}`), {
@@ -217,6 +224,36 @@ export default function AdminApplicationsPage() {
     const now = new Date()
     return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
   }).length
+  const normalizedSearch = searchQuery.trim().toLowerCase()
+  const filteredApplications = applications.filter(app => {
+    if (statusFilter !== "all" && app.status !== statusFilter) {
+      return false
+    }
+
+    if (!normalizedSearch) {
+      return true
+    }
+
+    const searchHaystack = [
+      app.full_name,
+      app.email,
+      app.contact_info,
+      app.preferred_start_date,
+      app.about_and_contribution,
+      app.social_links,
+      app.linkedin_link,
+      app.github_link,
+      app.content_studio_plans,
+      app.status,
+      app.admin_notes,
+      app.reviewed_by,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+
+    return searchHaystack.includes(normalizedSearch)
+  })
 
   return (
     <div className="min-h-screen bg-background">
@@ -307,6 +344,34 @@ export default function AdminApplicationsPage() {
           </div>
         </div>
 
+        <div className="mb-6 flex flex-col gap-3 rounded-xl border border-border bg-card p-4 md:flex-row md:items-center md:justify-between">
+          <div className="relative w-full md:max-w-xl">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search by name, email, contact, links, or notes"
+              className="pl-9"
+            />
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <span className="text-sm text-muted-foreground">
+              Showing {filteredApplications.length} of {applications.length}
+            </span>
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Review status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
         {/* Applications List */}
         {isLoading ? (
           <div className="text-center py-12">
@@ -318,9 +383,14 @@ export default function AdminApplicationsPage() {
             <Users className="w-12 h-12 mx-auto text-muted-foreground/50" />
             <p className="mt-4 text-muted-foreground">No applications yet.</p>
           </div>
+        ) : filteredApplications.length === 0 ? (
+          <div className="text-center py-12 bg-card border border-border rounded-xl">
+            <Users className="w-12 h-12 mx-auto text-muted-foreground/50" />
+            <p className="mt-4 text-muted-foreground">No applications match the current filters.</p>
+          </div>
         ) : (
           <div className="space-y-4">
-            {applications.map((app, index) => (
+            {filteredApplications.map((app, index) => (
               <motion.div
                 key={app.id}
                 className="bg-card border border-border rounded-xl p-6"

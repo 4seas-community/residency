@@ -11,6 +11,7 @@ export interface ApplicationRecord {
   full_name: string
   email: string
   contact_info: string | null
+  nationality: string | null
   preferred_start_date: string
   about_and_contribution: string
   social_links: string
@@ -35,6 +36,7 @@ export interface ApplicationInput {
   fullName: string
   email: string
   contactInfo: string
+  nationality: string
   preferredStartDate: string
   aboutAndContribution: string
   socialLinks: string
@@ -82,6 +84,7 @@ async function ensureSchema() {
         full_name text not null,
         email text not null,
         contact_info text,
+        nationality text,
         preferred_start_date text not null,
         about_and_contribution text not null,
         social_links text not null,
@@ -92,6 +95,7 @@ async function ensureSchema() {
       );
 
       alter table residency_applications
+        add column if not exists nationality text,
         add column if not exists admin_notes text,
         add column if not exists reviewed_by text,
         add column if not exists reviewed_at timestamptz;
@@ -181,6 +185,7 @@ export async function createApplication(input: ApplicationInput) {
         full_name,
         email,
         contact_info,
+        nationality,
         preferred_start_date,
         about_and_contribution,
         social_links,
@@ -188,7 +193,7 @@ export async function createApplication(input: ApplicationInput) {
         github_link,
         content_studio_plans
       )
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       returning *
     `,
     [
@@ -196,6 +201,7 @@ export async function createApplication(input: ApplicationInput) {
       input.fullName.trim(),
       input.email.trim(),
       input.contactInfo.trim(),
+      input.nationality.trim(),
       input.preferredStartDate,
       input.aboutAndContribution.trim(),
       input.socialLinks.trim(),
@@ -218,6 +224,7 @@ export async function listApplications() {
       full_name,
       email,
       contact_info,
+      nationality,
       preferred_start_date,
       about_and_contribution,
       social_links,
@@ -340,6 +347,7 @@ export async function updateApplicationReview(id: string, update: ApplicationRev
         full_name,
         email,
         contact_info,
+        nationality,
         preferred_start_date,
         about_and_contribution,
         social_links,

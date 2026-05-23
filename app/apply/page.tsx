@@ -35,6 +35,7 @@ export default function ApplyPage() {
     fullName: "",
     email: "",
     contactInfo: "",
+    nationality: "",
     preferredStartDate: "",
     aboutAndContribution: "",
     socialLinks: "",
@@ -52,6 +53,7 @@ export default function ApplyPage() {
     if (!formData.email.trim()) newErrors.email = "Email is required"
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Please enter a valid email"
     if (!formData.contactInfo.trim()) newErrors.contactInfo = "WhatsApp or Telegram is required"
+    if (!formData.nationality.trim()) newErrors.nationality = "Nationality is required"
     if (!formData.preferredStartDate) newErrors.preferredStartDate = "Please select a preferred start date"
     if (!formData.aboutAndContribution.trim()) newErrors.aboutAndContribution = "This field is required"
     else if (wordCount > 300) newErrors.aboutAndContribution = "Please keep your response under 300 words"
@@ -79,6 +81,7 @@ export default function ApplyPage() {
           fullName: formData.fullName,
           email: formData.email,
           contactInfo: formData.contactInfo,
+          nationality: formData.nationality,
           preferredStartDate: formData.preferredStartDate,
           aboutAndContribution: formData.aboutAndContribution,
           socialLinks: formData.socialLinks,
@@ -210,6 +213,20 @@ export default function ApplyPage() {
                     className={errors.contactInfo ? "border-destructive" : ""}
                   />
                   {errors.contactInfo && <p className="text-sm text-destructive">{errors.contactInfo}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="nationality">
+                    Nationality <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="nationality"
+                    value={formData.nationality}
+                    onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
+                    placeholder="Your nationality"
+                    className={errors.nationality ? "border-destructive" : ""}
+                  />
+                  {errors.nationality && <p className="text-sm text-destructive">{errors.nationality}</p>}
                 </div>
               </div>
             </section>

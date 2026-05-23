@@ -33,6 +33,7 @@ interface Application {
   full_name: string
   email: string
   contact_info: string | null
+  nationality: string | null
   preferred_start_date: string
   about_and_contribution: string
   social_links: string
@@ -265,6 +266,7 @@ export default function AdminApplicationsPage() {
       "Full Name",
       "Email",
       "Contact Info",
+      "Nationality",
       "Preferred Start Date",
       "About & Contribution",
       "Social Links",
@@ -289,6 +291,7 @@ export default function AdminApplicationsPage() {
           csvField(app.full_name),
           app.email,
           csvField(app.contact_info),
+          csvField(app.nationality),
           app.preferred_start_date,
           csvField(app.about_and_contribution),
           csvField(app.social_links),
@@ -320,6 +323,7 @@ export default function AdminApplicationsPage() {
       app.full_name.toLowerCase().includes(normalizedSearch) ||
       app.email.toLowerCase().includes(normalizedSearch) ||
       (app.contact_info || "").toLowerCase().includes(normalizedSearch) ||
+      (app.nationality || "").toLowerCase().includes(normalizedSearch) ||
       app.preferred_start_date.toLowerCase().includes(normalizedSearch)
     )
   ))
@@ -518,6 +522,7 @@ export default function AdminApplicationsPage() {
                         <th className="px-3 py-3 text-left font-semibold min-w-[120px]">Name</th>
                         <th className="px-3 py-3 text-left font-semibold min-w-[180px]">Email</th>
                         <th className="px-3 py-3 text-left font-semibold min-w-[100px]">Contact</th>
+                        <th className="px-3 py-3 text-left font-semibold min-w-[120px]">Nationality</th>
                         <th className="px-3 py-3 text-left font-semibold min-w-[100px]">Start Date</th>
                         <th className="px-3 py-3 text-left font-semibold min-w-[200px]">About</th>
                         <th className="px-3 py-3 text-left font-semibold min-w-[180px]">Social Links</th>
@@ -538,6 +543,7 @@ export default function AdminApplicationsPage() {
                             <td className="px-3 py-4 font-medium">{app.full_name}</td>
                             <td className="px-3 py-4 text-xs break-all">{app.email}</td>
                             <td className="px-3 py-4 text-xs">{app.contact_info || "-"}</td>
+                            <td className="px-3 py-4 text-xs">{app.nationality || "-"}</td>
                             <td className="px-3 py-4 text-xs">{app.preferred_start_date}</td>
                             <td className="px-3 py-4">
                               <p className="text-xs whitespace-pre-wrap max-h-[120px] overflow-y-auto">{app.about_and_contribution}</p>
@@ -665,10 +671,14 @@ export default function AdminApplicationsPage() {
                       </div>
                     </div>
 
-                    <div className="grid md:grid-cols-2 gap-4 mb-4 text-sm">
+                    <div className="grid md:grid-cols-3 gap-4 mb-4 text-sm">
                       <div>
                         <p className="text-muted-foreground">Contact Info</p>
                         <p className="text-foreground font-medium">{app.contact_info || "-"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Nationality</p>
+                        <p className="text-foreground font-medium">{app.nationality || "-"}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Start Date</p>

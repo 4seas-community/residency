@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto"
 import { cookies } from "next/headers"
 
 export const adminCookieName = "residency_admin_session"
-export const adminSessionMaxAge = 60 * 60 * 12
+export const adminSessionMaxAge = 60 * 60 * 24 * 30
 
 interface AdminSessionPayload {
   exp: number

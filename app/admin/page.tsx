@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Lock, ArrowLeft } from "lucide-react"
@@ -14,7 +14,34 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isCheckingSession, setIsCheckingSession] = useState(true)
   const router = useRouter()
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function checkSession() {
+      try {
+        const response = await fetch(withBasePath("/api/admin/session"), { cache: "no-store" })
+        if (response.ok && !cancelled) {
+          router.replace(withBasePath("/admin/applications"))
+          return
+        }
+      } catch {
+        // If the session probe fails, fall back to showing the login form.
+      } finally {
+        if (!cancelled) {
+          setIsCheckingSession(false)
+        }
+      }
+    }
+
+    void checkSession()
+
+    return () => {
+      cancelled = true
+    }
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,7 +58,7 @@ export default function AdminLoginPage() {
       })
 
       if (response.ok) {
-        router.push("/admin/applications")
+        router.push(withBasePath("/admin/applications"))
         return
       }
 
@@ -42,6 +69,10 @@ export default function AdminLoginPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (isCheckingSession) {
+    return null
   }
 
   return (

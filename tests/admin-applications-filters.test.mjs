@@ -40,3 +40,14 @@ test("admin application backend supports comment storage", async () => {
   assert.match(commentRouteSource, /export async function POST/)
   assert.match(deleteRouteSource, /export async function DELETE/)
 })
+
+test("legacy admin notes are backfilled into comments without duplicates", async () => {
+  const applicationsSource = await readFile(new URL("../lib/applications.ts", import.meta.url), "utf8")
+
+  assert.match(applicationsSource, /backfillLegacyAdminNotes/)
+  assert.match(applicationsSource, /from residency_applications a/)
+  assert.match(applicationsSource, /a\.admin_notes is not null/)
+  assert.match(applicationsSource, /insert into admin_comments/)
+  assert.match(applicationsSource, /not exists \(\s*select 1 from admin_comments c/)
+  assert.match(applicationsSource, /btrim\(c\.comment\) = btrim\(a\.admin_notes\)/)
+})

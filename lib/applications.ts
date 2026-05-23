@@ -48,6 +48,13 @@ declare global {
   var residencyApplicationsSchemaReady: Promise<void> | undefined
 }
 
+interface LegacyAdminNoteRow {
+  id: string
+  admin_notes: string
+  reviewer_name: string
+  created_at: string
+}
+
 function getDatabaseUrl() {
   const databaseUrl = process.env.DATABASE_URL
   if (!databaseUrl) {
@@ -102,10 +109,61 @@ async function ensureSchema() {
 
       create index if not exists admin_comments_application_created_at_idx
         on admin_comments (application_id, created_at desc);
-    `).then(() => undefined)
+    `).then(() => backfillLegacyAdminNotes())
   }
 
   return globalThis.residencyApplicationsSchemaReady
+}
+
+async function backfillLegacyAdminNotes() {
+  const pool = getPool()
+  const notes = await pool.query<LegacyAdminNoteRow>(`
+    select
+      a.id::text,
+      a.admin_notes,
+      coalesce(nullif(btrim(a.reviewed_by), ''), 'Admin Note') as reviewer_name,
+      coalesce(a.reviewed_at, a.created_at)::text as created_at
+    from residency_applications a
+    where a.admin_notes is not null
+      and btrim(a.admin_notes) <> ''
+      and not exists (
+        select 1 from admin_comments c
+        where c.application_id = a.id
+          and btrim(c.comment) = btrim(a.admin_notes)
+      )
+  `)
+
+  if (notes.rowCount === 0) {
+    return
+  }
+
+  const params: unknown[] = []
+  const values = notes.rows.map((note, index) => {
+    const offset = index * 5
+    params.push(
+      randomUUID(),
+      note.id,
+      note.reviewer_name,
+      note.admin_notes,
+      note.created_at,
+    )
+    return `($${offset + 1}, $${offset + 2}::uuid, $${offset + 3}, $${offset + 4}, $${offset + 5}::timestamptz)`
+  })
+
+  await pool.query(
+    `
+      insert into admin_comments (
+        id,
+        application_id,
+        reviewer_name,
+        comment,
+        created_at
+      )
+      values ${values.join(", ")}
+      on conflict (id) do nothing
+    `,
+    params,
+  )
 }
 
 function optionalText(value: string | undefined) {

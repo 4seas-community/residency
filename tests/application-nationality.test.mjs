@@ -13,6 +13,10 @@ test("application flow captures nationality and exposes it to admins", async () 
   assert.match(applyPageSource, /Nationality <span className="text-destructive">\*<\/span>/)
   assert.match(applyPageSource, /newErrors\.nationality = "Nationality is required"/)
   assert.match(applyPageSource, /nationality: formData\.nationality/)
+  assert.ok(
+    applyPageSource.indexOf('htmlFor="nationality"') > applyPageSource.indexOf('htmlFor="preferredStartDate"'),
+    "Nationality field should appear after preferred start date",
+  )
 
   assert.match(applicationRouteSource, /nationality: stringValue\(data\.nationality\)/)
   assert.match(applicationRouteSource, /if \(!application\.nationality\) throw new Error\("Nationality is required"\)/)

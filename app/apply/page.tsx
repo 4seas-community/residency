@@ -215,19 +215,6 @@ export default function ApplyPage() {
                   {errors.contactInfo && <p className="text-sm text-destructive">{errors.contactInfo}</p>}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="nationality">
-                    Nationality <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="nationality"
-                    value={formData.nationality}
-                    onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
-                    placeholder="Your nationality"
-                    className={errors.nationality ? "border-destructive" : ""}
-                  />
-                  {errors.nationality && <p className="text-sm text-destructive">{errors.nationality}</p>}
-                </div>
               </div>
             </section>
 
@@ -257,6 +244,20 @@ export default function ApplyPage() {
                   </SelectContent>
                 </Select>
                 {errors.preferredStartDate && <p className="text-sm text-destructive">{errors.preferredStartDate}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="nationality">
+                  Nationality <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="nationality"
+                  value={formData.nationality}
+                  onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
+                  placeholder="Your nationality"
+                  className={errors.nationality ? "border-destructive" : ""}
+                />
+                {errors.nationality && <p className="text-sm text-destructive">{errors.nationality}</p>}
               </div>
             </section>
 

@@ -24,7 +24,7 @@ export default function AdminLoginPage() {
       try {
         const response = await fetch(withBasePath("/api/admin/session"), { cache: "no-store" })
         if (response.ok && !cancelled) {
-          router.replace(withBasePath("/admin/applications"))
+          router.replace("/admin/applications")
           return
         }
       } catch {
@@ -58,7 +58,7 @@ export default function AdminLoginPage() {
       })
 
       if (response.ok) {
-        router.push(withBasePath("/admin/applications"))
+        router.push("/admin/applications")
         return
       }
 

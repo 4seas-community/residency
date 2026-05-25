@@ -101,7 +101,7 @@ export default function AdminApplicationsPage() {
       const response = await fetch(withBasePath("/api/admin/applications"), { cache: "no-store" })
 
       if (response.status === 401) {
-        router.replace(withBasePath("/admin"))
+        router.replace("/admin")
         return
       }
       if (!response.ok) {
@@ -140,7 +140,7 @@ export default function AdminApplicationsPage() {
       })
 
       if (response.status === 401) {
-        router.replace(withBasePath("/admin"))
+        router.replace("/admin")
         return
       }
       if (!response.ok) {
@@ -188,7 +188,7 @@ export default function AdminApplicationsPage() {
       })
 
       if (response.status === 401) {
-        router.replace(withBasePath("/admin"))
+        router.replace("/admin")
         return
       }
       if (!response.ok) {
@@ -231,7 +231,7 @@ export default function AdminApplicationsPage() {
       })
 
       if (response.status === 401) {
-        router.replace(withBasePath("/admin"))
+        router.replace("/admin")
         return
       }
       if (!response.ok) {
@@ -254,7 +254,7 @@ export default function AdminApplicationsPage() {
 
   const handleLogout = async () => {
     await fetch(withBasePath("/api/admin/logout"), { method: "POST" })
-    router.push(withBasePath("/admin"))
+    router.push("/admin")
   }
 
   const exportToCSV = () => {
@@ -350,7 +350,7 @@ export default function AdminApplicationsPage() {
       <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur z-10">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href={withBasePath("/")}>
+            <Link href="/">
               <img src={withBasePath("/images/4seas-logo.png")} alt="4Seas" className="h-8 w-auto" />
             </Link>
             <span className="text-muted-foreground">/</span>

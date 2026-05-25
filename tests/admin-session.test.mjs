@@ -14,6 +14,6 @@ test("admin sessions last one month and login page redirects authenticated admin
   assert.match(sessionRouteSource, /NextResponse\.json\(\{ authenticated: true \}\)/)
   assert.match(adminPageSource, /useEffect/)
   assert.match(adminPageSource, /fetch\(withBasePath\("\/api\/admin\/session"\)/)
-  assert.match(adminPageSource, /router\.replace\(withBasePath\("\/admin\/applications"\)\)/)
-  assert.match(adminPageSource, /router\.push\(withBasePath\("\/admin\/applications"\)\)/)
+  assert.match(adminPageSource, /router\.replace\("\/admin\/applications"\)/)
+  assert.match(adminPageSource, /router\.push\("\/admin\/applications"\)/)
 })

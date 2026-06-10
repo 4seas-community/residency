@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { hasValidAdminSession } from "@/lib/admin-auth"
-import {
-  applicationStatuses,
-  updateApplicationReview,
-  type ApplicationStatus,
-} from "@/lib/applications"
+import { updateApplicationFields } from "@/lib/applications/db"
+import { STATUS_CONFIG } from "@/lib/programs"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-function isApplicationStatus(value: unknown): value is ApplicationStatus {
-  return typeof value === "string" && applicationStatuses.includes(value as ApplicationStatus)
-}
+const VALID_STATUSES = new Set(Object.keys(STATUS_CONFIG))
+const VALID_PROGRAMS = new Set(["crypto", "art", "longevity", "other"])
 
 export async function PATCH(
   request: NextRequest,
@@ -35,38 +30,43 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const payload = (body ?? {}) as { status?: unknown; adminNotes?: unknown }
+  const data = (body ?? {}) as Record<string, unknown>
+  const fields: Record<string, unknown> = {}
 
-  const update: { status?: ApplicationStatus; adminNotes?: string | null; reviewedBy: string } = {
-    reviewedBy: "Admin",
-  }
-
-  if (payload.status !== undefined) {
-    if (!isApplicationStatus(payload.status)) {
-      return NextResponse.json(
-        { error: `status must be one of ${applicationStatuses.join(", ")}` },
-        { status: 400 },
-      )
+  if (data.status !== undefined) {
+    if (typeof data.status !== "string" || !VALID_STATUSES.has(data.status)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 })
     }
-    update.status = payload.status
+    fields.status = data.status
   }
 
-  if (payload.adminNotes !== undefined) {
-    if (payload.adminNotes !== null && typeof payload.adminNotes !== "string") {
-      return NextResponse.json({ error: "adminNotes must be a string or null" }, { status: 400 })
+  if (data.program_type !== undefined) {
+    if (typeof data.program_type !== "string" || !VALID_PROGRAMS.has(data.program_type)) {
+      return NextResponse.json({ error: "Invalid program_type" }, { status: 400 })
     }
-    update.adminNotes = payload.adminNotes as string | null
+    fields.program_type = data.program_type
   }
 
-  if (update.status === undefined && update.adminNotes === undefined) {
-    return NextResponse.json(
-      { error: "Provide status and/or adminNotes" },
-      { status: 400 },
-    )
+  if (data.actual_start_date !== undefined) {
+    fields.actual_start_date =
+      data.actual_start_date === null || data.actual_start_date === ""
+        ? null
+        : String(data.actual_start_date)
+  }
+
+  if (data.assigned_admin !== undefined) {
+    fields.assigned_admin = data.assigned_admin === null ? null : String(data.assigned_admin)
+  }
+
+  if (typeof data.reviewed_by === "string") fields.reviewed_by = data.reviewed_by
+  if (typeof data.reviewed_at === "string") fields.reviewed_at = data.reviewed_at
+
+  if (Object.keys(fields).length === 0) {
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 })
   }
 
   try {
-    const application = await updateApplicationReview(id, update)
+    const application = await updateApplicationFields(id, fields)
     if (!application) {
       return NextResponse.json({ error: "Application not found" }, { status: 404 })
     }

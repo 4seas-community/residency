@@ -1,9 +1,12 @@
 import type { Metadata } from 'next'
+import { Geist, Geist_Mono, Playfair_Display } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
+import { withBasePath } from '@/lib/paths'
 
-const basePath = (process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "")
-const withBasePath = (path: string) => `${basePath}${path}`
+const _geist = Geist({ subsets: ["latin"] });
+const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const _playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-serif' });
 
 export const metadata: Metadata = {
   title: '4Seas Crypto Residency Program | Chiang Mai',
@@ -12,21 +15,17 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: withBasePath('/images/favicon.jpg'),
-        type: 'image/x-icon',
+        url: withBasePath('/4seas-favicon.jpg'),
+        sizes: '32x32',
+        type: 'image/jpeg',
       },
-    ],
-    shortcut: [
       {
-        url: withBasePath('/images/favicon.jpg'),
-        type: 'image/x-icon',
+        url: withBasePath('/4seas-icon.jpg'),
+        sizes: '256x256',
+        type: 'image/jpeg',
       },
     ],
-    apple: [
-      {
-        url: withBasePath('/images/webclip.jpg'),
-      },
-    ],
+    apple: withBasePath('/4seas-icon.jpg'),
   },
 }
 
@@ -36,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="bg-background">
+    <html lang="en" className={`bg-background ${_playfair.variable}`}>
       <body className="font-sans antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}

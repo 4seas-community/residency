@@ -62,7 +62,7 @@ export default function AdminLoginPage() {
         return
       }
 
-      const result = await response.json().catch(() => null) as { error?: string } | null
+      const result = (await response.json().catch(() => null)) as { error?: string } | null
       setError(result?.error || "Incorrect password")
     } catch {
       setError("Unable to verify password")
@@ -77,7 +77,7 @@ export default function AdminLoginPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <motion.div 
+      <motion.div
         className="max-w-md w-full"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -91,7 +91,7 @@ export default function AdminLoginPage() {
           <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
             <Lock className="w-6 h-6 text-primary" />
           </div>
-          
+
           <h1 className="text-2xl font-semibold text-foreground text-center mb-2">
             Admin Access
           </h1>

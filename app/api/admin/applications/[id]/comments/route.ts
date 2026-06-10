@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { hasValidAdminSession } from "@/lib/admin-auth"
-import { createAdminComment } from "@/lib/applications"
+import { createAdminComment } from "@/lib/applications/db"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -27,21 +27,20 @@ export async function POST(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const payload = (body ?? {}) as { reviewerName?: unknown; comment?: unknown }
-  if (typeof payload.reviewerName !== "string" || !payload.reviewerName.trim()) {
-    return NextResponse.json({ error: "reviewerName is required" }, { status: 400 })
+  const data = (body ?? {}) as Record<string, unknown>
+  const reviewerName = typeof data.reviewer_name === "string" ? data.reviewer_name : ""
+  const comment = typeof data.comment === "string" ? data.comment : ""
+
+  if (!reviewerName.trim()) {
+    return NextResponse.json({ error: "reviewer_name is required" }, { status: 400 })
   }
-  if (typeof payload.comment !== "string" || !payload.comment.trim()) {
+  if (!comment.trim()) {
     return NextResponse.json({ error: "comment is required" }, { status: 400 })
   }
 
   try {
-    const comment = await createAdminComment({
-      applicationId: id,
-      reviewerName: payload.reviewerName,
-      comment: payload.comment,
-    })
-    return NextResponse.json({ comment })
+    const created = await createAdminComment({ applicationId: id, reviewerName, comment })
+    return NextResponse.json({ comment: created })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to add comment"
     return NextResponse.json({ error: message }, { status: 500 })

@@ -6,6 +6,10 @@ import { useRef } from "react"
 import { ArrowUpRight, MessageCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
+interface ExploreMoreProps {
+  programType?: 'crypto' | 'art'
+}
+
 const cards = [
   {
     title: "4Seas",
@@ -29,19 +33,20 @@ const cards = [
   }
 ]
 
-export function ExploreMore() {
+export function ExploreMore({ programType = 'crypto' }: ExploreMoreProps) {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: "-100px" })
+  const accentColor = programType === 'art' ? '#e11d48' : undefined
 
   return (
-    <section ref={ref} className="py-24 px-4 md:px-8 bg-secondary/30">
+    <section ref={ref} className="py-12 px-4 md:px-8 bg-secondary/30">
       <div className="max-w-5xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.8 }}
         >
-          <h2 className="text-3xl md:text-4xl font-semibold text-foreground mb-10 text-center">
+          <h2 className="text-3xl md:text-4xl font-sans font-semibold text-foreground mb-10 text-center">
             Explore More
           </h2>
           
@@ -56,7 +61,7 @@ export function ExploreMore() {
                 whileHover={{ 
                   y: -8,
                   boxShadow: "0 20px 40px -15px rgba(0,0,0,0.1)",
-                  borderColor: "var(--primary)",
+                  borderColor: accentColor || "var(--primary)",
                   transition: { duration: 0.3 }
                 }}
               >

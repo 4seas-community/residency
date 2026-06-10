@@ -1,62 +1,97 @@
 import { NextResponse } from "next/server"
-import { createApplication, type ApplicationInput } from "@/lib/applications"
+import { createApplication, type CreateApplicationInput } from "@/lib/applications/db"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const VALID_PROGRAMS = new Set(["crypto", "art", "longevity"])
 
-function countWords(text: string) {
-  return text.trim().split(/\s+/).filter(Boolean).length
-}
-
-function stringValue(value: unknown) {
+function str(value: unknown): string {
   return typeof value === "string" ? value.trim() : ""
 }
 
-function parseApplicationPayload(body: unknown): ApplicationInput {
-  if (!body || typeof body !== "object") {
-    throw new Error("Invalid request body")
-  }
+function optStr(value: unknown): string | null {
+  const trimmed = typeof value === "string" ? value.trim() : ""
+  return trimmed ? trimmed : null
+}
 
-  const data = body as Record<string, unknown>
-  const application = {
-    fullName: stringValue(data.fullName),
-    email: stringValue(data.email),
-    contactInfo: stringValue(data.contactInfo),
-    nationality: stringValue(data.nationality),
-    preferredStartDate: stringValue(data.preferredStartDate),
-    aboutAndContribution: stringValue(data.aboutAndContribution),
-    socialLinks: stringValue(data.socialLinks),
-    linkedinLink: stringValue(data.linkedinLink),
-    githubLink: stringValue(data.githubLink),
-    contentStudioPlans: stringValue(data.contentStudioPlans),
-  }
-
-  if (!application.fullName) throw new Error("Full name is required")
-  if (!emailPattern.test(application.email)) throw new Error("A valid email is required")
-  if (!application.contactInfo) throw new Error("WhatsApp or Telegram is required")
-  if (!application.nationality) throw new Error("Nationality is required")
-  if (!application.preferredStartDate) throw new Error("Preferred start date is required")
-  if (!application.aboutAndContribution) throw new Error("About and contribution is required")
-  if (countWords(application.aboutAndContribution) > 300) {
-    throw new Error("Please keep your response under 300 words")
-  }
-  if (!application.socialLinks) throw new Error("At least one social link is required")
-
-  return application
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length
 }
 
 export async function POST(request: Request) {
+  let body: unknown
   try {
-    const application = parseApplicationPayload(await request.json())
-    const created = await createApplication(application)
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
 
-    return NextResponse.json({ application: created }, { status: 201 })
+  const data = (body ?? {}) as Record<string, unknown>
+
+  const full_name = str(data.full_name)
+  const email = str(data.email)
+  const preferred_start_date = str(data.preferred_start_date)
+  const about_and_contribution = str(data.about_and_contribution)
+  const social_links = str(data.social_links)
+  const contact_info = optStr(data.contact_info)
+  const telegram = optStr(data.telegram)
+  const whatsapp = optStr(data.whatsapp)
+
+  if (!full_name) return NextResponse.json({ error: "Full name is required" }, { status: 400 })
+  if (!emailPattern.test(email)) return NextResponse.json({ error: "A valid email is required" }, { status: 400 })
+  if (!contact_info && !telegram && !whatsapp) {
+    return NextResponse.json({ error: "WhatsApp or Telegram is required" }, { status: 400 })
+  }
+  if (!preferred_start_date) return NextResponse.json({ error: "Preferred start date is required" }, { status: 400 })
+  if (!about_and_contribution) return NextResponse.json({ error: "Please tell us about yourself" }, { status: 400 })
+  if (countWords(about_and_contribution) > 300) {
+    return NextResponse.json({ error: "Please keep your response under 300 words" }, { status: 400 })
+  }
+  if (!social_links) return NextResponse.json({ error: "At least one social link is required" }, { status: 400 })
+
+  const programType = optStr(data.program_type)
+  const input: CreateApplicationInput = {
+    program_type: programType && VALID_PROGRAMS.has(programType) ? programType : undefined,
+    full_name,
+    email,
+    contact_info,
+    telegram,
+    whatsapp,
+    country: optStr(data.country),
+    city: optStr(data.city),
+    nationality: optStr(data.nationality),
+    current_location: optStr(data.current_location),
+    role_title: optStr(data.role_title),
+    organization: optStr(data.organization),
+    website: optStr(data.website),
+    preferred_start_date,
+    actual_start_date: optStr(data.actual_start_date),
+    preferred_duration: optStr(data.preferred_duration),
+    about_and_contribution,
+    bio: optStr(data.bio),
+    why_4seas: optStr(data.why_4seas),
+    why_this_track: optStr(data.why_this_track),
+    proposed_contribution: optStr(data.proposed_contribution),
+    social_links,
+    linkedin_link: optStr(data.linkedin_link),
+    github_link: optStr(data.github_link),
+    portfolio_url: optStr(data.portfolio_url),
+    content_studio_plans: optStr(data.content_studio_plans),
+    needs_support: optStr(data.needs_support),
+    previous_community_experience: optStr(data.previous_community_experience),
+    anything_else: optStr(data.anything_else),
+  }
+
+  try {
+    const created = await createApplication(input)
+    return NextResponse.json({ ok: true, id: created.id }, { status: 201 })
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to submit application"
-    const status = message.includes("configured") ? 500 : 400
-
-    return NextResponse.json({ error: message }, { status })
+    console.error("application submit error:", error)
+    return NextResponse.json(
+      { error: "Unable to submit application. Please try again." },
+      { status: 500 },
+    )
   }
 }

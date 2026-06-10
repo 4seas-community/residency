@@ -1,18 +1,25 @@
 "use client"
 
+import Link from "next/link"
 import { motion } from "framer-motion"
 import { useInView } from "framer-motion"
 import { useRef } from "react"
 import { Calendar, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { withBasePath } from "@/lib/paths"
 
-export function ResidencyCycle() {
+interface ResidencyCycleProps {
+  programType?: 'crypto' | 'art'
+}
+
+export function ResidencyCycle({ programType = 'crypto' }: ResidencyCycleProps) {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: "-100px" })
+  
+  const applyLink = programType === 'art' ? '/art/apply' : '/crypto/apply'
+  const accentColor = programType === 'art' ? '#e11d48' : undefined
 
   return (
-    <section ref={ref} className="py-24 px-4 md:px-8 bg-secondary/30">
+    <section ref={ref} className="py-12 px-4 md:px-8 bg-secondary/30">
       <div className="max-w-4xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 40 }}
@@ -21,13 +28,13 @@ export function ResidencyCycle() {
           className="bg-card rounded-2xl p-8 md:p-12 border border-border shadow-sm"
         >
           <div className="flex items-start gap-4 mb-6">
-            <div className="p-3 rounded-xl bg-primary/10">
-              <Calendar className="w-6 h-6 text-primary" />
+            <div className="p-3 rounded-xl bg-primary/10" style={accentColor ? { backgroundColor: `${accentColor}20` } : undefined}>
+              <Calendar className="w-6 h-6 text-primary" style={accentColor ? { color: accentColor } : undefined} />
             </div>
             <div>
-              <h2 className="text-2xl md:text-3xl font-semibold text-foreground mb-2 flex items-center gap-3">
+              <h2 className="text-2xl md:text-3xl font-sans font-semibold text-foreground mb-2 flex items-center gap-3">
                 Residency Cycle
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" style={accentColor ? { backgroundColor: accentColor } : undefined} />
               </h2>
               <p className="text-muted-foreground text-pretty">
                 Flexible start dates designed around your schedule
@@ -63,12 +70,13 @@ export function ResidencyCycle() {
           <Button 
             size="lg" 
             className="w-full md:w-auto rounded-full group"
+            style={accentColor ? { backgroundColor: accentColor } : undefined}
             asChild
           >
-            <a href={withBasePath("/apply")}>
+            <Link href={applyLink}>
               Apply Now
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </a>
+            </Link>
           </Button>
         </motion.div>
       </div>

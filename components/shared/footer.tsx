@@ -7,7 +7,6 @@ export function Footer() {
     <footer className="py-12 px-4 md:px-8 border-t border-border">
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          {/* Partner logos */}
           <div className="flex items-center gap-3 md:gap-4 flex-wrap justify-center">
             <a href="https://www.4seas.xyz/" target="_blank" rel="noopener noreferrer">
               <img 
@@ -33,8 +32,7 @@ export function Footer() {
               />
             </a>
           </div>
-
-          {/* Social links */}
+          
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <a 
               href="https://t.me/NomadsBase" 
@@ -54,8 +52,7 @@ export function Footer() {
             </a>
           </div>
         </div>
-
-        {/* Copyright */}
+        
         <div className="mt-8 pt-6 border-t border-border text-center text-sm text-muted-foreground">
           <p>© {new Date().getFullYear()} 4Seas. Chiang Mai, Thailand.</p>
         </div>

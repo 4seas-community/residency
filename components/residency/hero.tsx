@@ -1,28 +1,35 @@
 "use client"
 
+import Link from "next/link"
 import { motion } from "framer-motion"
 import { ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Header } from "@/components/shared/header"
 import { withBasePath } from "@/lib/paths"
 
-export function Hero() {
+interface HeroProps {
+  programType?: 'crypto' | 'art'
+  title?: string
+  tagline?: string
+  description?: string
+  applyLink?: string
+  accentColor?: string
+}
+
+export function Hero({ 
+  programType = 'crypto',
+  title = "4Seas Crypto Residency Program",
+  tagline = "Live with the community. Build in public, build in person.",
+  description = "What if crypto was not only discussed online, at conferences, or inside group chats, but lived, tested, and practiced in a real community?",
+  applyLink = "/crypto/apply",
+  accentColor = "#0A6B5A"
+}: HeroProps) {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 py-20">
-      {/* Top logo */}
-      <motion.div 
-        className="absolute top-6 left-1/2 -translate-x-1/2 z-20"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <a href="https://www.4seas.xyz/" target="_blank" rel="noopener noreferrer">
-          <img 
-            src={withBasePath("/images/4seas-logo.png")}
-            alt="4Seas" 
-            className="h-10 md:h-12 w-auto"
-          />
-        </a>
-      </motion.div>
+    <section className="relative min-h-[50vh] md:min-h-[60vh] flex items-center justify-center overflow-hidden">
+      {/* Header */}
+      <div className="absolute top-0 left-0 right-0 z-20">
+        <Header />
+      </div>
 
       {/* Background image */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -33,7 +40,7 @@ export function Hero() {
           transition={{ duration: 1.5, ease: "easeOut" }}
         >
           <img 
-            src={withBasePath("/images/hero-bg.png")}
+            src={withBasePath(programType === 'art' ? '/images/art.png' : '/images/crypto.png')}
             alt="" 
             className="w-full h-full object-cover"
           />
@@ -42,15 +49,15 @@ export function Hero() {
         </motion.div>
       </div>
 
-      <div className="relative z-10 max-w-4xl mx-auto text-center">
+      <div className="relative z-10 max-w-4xl mx-auto text-center px-4 py-12 md:py-20">
         {/* Main title */}
         <motion.h1 
-          className="text-4xl md:text-6xl lg:text-7xl font-semibold tracking-tight text-foreground mb-6"
+          className="text-4xl md:text-6xl lg:text-7xl font-sans font-semibold tracking-tight text-foreground mb-6"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1 }}
         >
-          <span className="text-balance">4Seas Crypto Residency Program</span>
+          <span className="text-balance">{title}</span>
         </motion.h1>
 
         {/* Tagline */}
@@ -60,7 +67,7 @@ export function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
         >
-          Live with the community. Build in public, build in person.
+          {tagline}
         </motion.p>
 
         {/* Intro text */}
@@ -70,8 +77,7 @@ export function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
         >
-          What if crypto was not only discussed online, at conferences, or inside group chats, 
-          but lived, tested, and practiced in a real community?
+          {description}
         </motion.p>
 
         {/* CTA Button */}
@@ -83,17 +89,16 @@ export function Hero() {
         >
           <Button 
             size="lg" 
-            className="text-lg px-8 py-6 h-auto rounded-full group hover:scale-105 transition-transform"
+            className="text-lg px-8 py-3 h-auto rounded-full group hover:scale-105 transition-transform text-white"
+            style={{ backgroundColor: accentColor }}
             asChild
           >
-            <a href={withBasePath("/apply")} className="flex items-center">
+            <Link href={applyLink} className="flex items-center">
               Apply Now
               <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-            </a>
+            </Link>
           </Button>
         </motion.div>
-
-
       </div>
     </section>
   )

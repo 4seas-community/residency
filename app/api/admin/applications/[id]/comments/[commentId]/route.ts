@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { hasValidAdminSession } from "@/lib/admin-auth"
-import { deleteAdminComment } from "@/lib/applications"
+import { deleteAdminComment } from "@/lib/applications/db"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -24,7 +24,7 @@ export async function DELETE(
   }
 
   try {
-    const comment = await deleteAdminComment(id, commentId)
+    const comment = await deleteAdminComment(commentId, id)
     if (!comment) {
       return NextResponse.json({ error: "Comment not found" }, { status: 404 })
     }

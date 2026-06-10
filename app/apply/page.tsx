@@ -2,14 +2,15 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { ArrowLeft, Send, AlertCircle, CheckCircle } from "lucide-react"
+import { Send, AlertCircle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { withBasePath } from "@/lib/paths"
 import Link from "next/link"
+import { withBasePath } from "@/lib/paths"
+import { Header } from "@/components/shared/header"
 
 const preferredDates = [
   "May 15, 2026",
@@ -35,7 +36,6 @@ export default function ApplyPage() {
     fullName: "",
     email: "",
     contactInfo: "",
-    nationality: "",
     preferredStartDate: "",
     aboutAndContribution: "",
     socialLinks: "",
@@ -53,7 +53,6 @@ export default function ApplyPage() {
     if (!formData.email.trim()) newErrors.email = "Email is required"
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Please enter a valid email"
     if (!formData.contactInfo.trim()) newErrors.contactInfo = "WhatsApp or Telegram is required"
-    if (!formData.nationality.trim()) newErrors.nationality = "Nationality is required"
     if (!formData.preferredStartDate) newErrors.preferredStartDate = "Please select a preferred start date"
     if (!formData.aboutAndContribution.trim()) newErrors.aboutAndContribution = "This field is required"
     else if (wordCount > 300) newErrors.aboutAndContribution = "Please keep your response under 300 words"
@@ -72,28 +71,27 @@ export default function ApplyPage() {
     setErrorMessage("")
     
     try {
+      const insertData = {
+        full_name: formData.fullName,
+        email: formData.email,
+        contact_info: formData.contactInfo,
+        preferred_start_date: formData.preferredStartDate,
+        about_and_contribution: formData.aboutAndContribution,
+        social_links: formData.socialLinks,
+        linkedin_link: formData.linkedinLink || null,
+        github_link: formData.githubLink || null,
+        content_studio_plans: formData.contentStudioPlans || null,
+      }
+
       const response = await fetch(withBasePath("/api/applications"), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fullName: formData.fullName,
-          email: formData.email,
-          contactInfo: formData.contactInfo,
-          nationality: formData.nationality,
-          preferredStartDate: formData.preferredStartDate,
-          aboutAndContribution: formData.aboutAndContribution,
-          socialLinks: formData.socialLinks,
-          linkedinLink: formData.linkedinLink,
-          githubLink: formData.githubLink,
-          contentStudioPlans: formData.contentStudioPlans,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(insertData),
       })
 
       if (!response.ok) {
-        const result = await response.json().catch(() => null) as { error?: string } | null
-        throw new Error(result?.error || "Unable to submit application")
+        const result = (await response.json().catch(() => null)) as { error?: string } | null
+        throw new Error(result?.error || "Failed to submit")
       }
       
       setSubmitStatus("success")
@@ -137,18 +135,7 @@ export default function ApplyPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back</span>
-            </Link>
-          </div>
-          <img src={withBasePath("/images/4seas-logo.png")} alt="4Seas" className="h-8 w-auto" />
-        </div>
-      </header>
+      <Header />
 
       {/* Form */}
       <main className="max-w-3xl mx-auto px-4 py-12">
@@ -214,7 +201,6 @@ export default function ApplyPage() {
                   />
                   {errors.contactInfo && <p className="text-sm text-destructive">{errors.contactInfo}</p>}
                 </div>
-
               </div>
             </section>
 
@@ -244,20 +230,6 @@ export default function ApplyPage() {
                   </SelectContent>
                 </Select>
                 {errors.preferredStartDate && <p className="text-sm text-destructive">{errors.preferredStartDate}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="nationality">
-                  Nationality <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="nationality"
-                  value={formData.nationality}
-                  onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
-                  placeholder="Your nationality"
-                  className={errors.nationality ? "border-destructive" : ""}
-                />
-                {errors.nationality && <p className="text-sm text-destructive">{errors.nationality}</p>}
               </div>
             </section>
 

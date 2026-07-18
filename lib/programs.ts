@@ -7,7 +7,11 @@ export type ApplicationStatus =
   | 'reviewing' 
   | 'shortlisted' 
   | 'interview_needed' 
+  | 'interviewing'
+  | 'interview_passed'
+  | 'interview_rejected'
   | 'accepted' 
+  | 'accepted_post_interview'
   | 'rejected' 
   | 'waitlist' 
   | 'withdrawn'
@@ -263,15 +267,26 @@ export const getVisiblePrograms = (): ProgramConfig[] => {
 
 export const STATUS_CONFIG: Record<ApplicationStatus, { label: string; color: string; bgColor: string }> = {
   new: { label: 'New', color: 'text-blue-700', bgColor: 'bg-blue-100' },
-  reviewing: { label: 'Reviewing', color: 'text-yellow-700', bgColor: 'bg-yellow-100' },
-  shortlisted: { label: 'Shortlisted', color: 'text-purple-700', bgColor: 'bg-purple-100' },
+  reviewing: { label: 'Reviewing', color: 'text-blue-700', bgColor: 'bg-blue-100' },
+  shortlisted: { label: 'Shortlisted (Legacy)', color: 'text-purple-700', bgColor: 'bg-purple-100' },
   interview_needed: { label: 'Interview Needed', color: 'text-orange-700', bgColor: 'bg-orange-100' },
+  interviewing: { label: 'Interviewing', color: 'text-orange-700', bgColor: 'bg-orange-100' },
+  interview_passed: { label: 'Interview Passed', color: 'text-teal-700', bgColor: 'bg-teal-100' },
+  interview_rejected: { label: 'Interview Rejected', color: 'text-red-700', bgColor: 'bg-red-100' },
   accepted: { label: 'Accepted', color: 'text-green-700', bgColor: 'bg-green-100' },
+  accepted_post_interview: { label: 'Accepted (Post-Interview)', color: 'text-green-700', bgColor: 'bg-green-100' },
   rejected: { label: 'Rejected', color: 'text-red-700', bgColor: 'bg-red-100' },
   waitlist: { label: 'Waitlist', color: 'text-gray-700', bgColor: 'bg-gray-100' },
   withdrawn: { label: 'Withdrawn', color: 'text-gray-500', bgColor: 'bg-gray-50' },
   pending: { label: 'Pending', color: 'text-yellow-700', bgColor: 'bg-yellow-100' },
-  approved: { label: 'Approved', color: 'text-green-700', bgColor: 'bg-green-100' }
+  approved: { label: 'Accepted', color: 'text-green-700', bgColor: 'bg-green-100' }
+}
+
+export const STATUS_GROUPS = {
+  new: { label: 'New', statuses: ['new', 'reviewing'] as ApplicationStatus[] },
+  in_progress: { label: 'In Progress', statuses: ['interview_needed', 'interviewing'] as ApplicationStatus[] },
+  accepted: { label: 'Accepted', statuses: ['accepted', 'accepted_post_interview', 'interview_passed'] as ApplicationStatus[] },
+  rejected: { label: 'Rejected', statuses: ['rejected', 'interview_rejected'] as ApplicationStatus[] },
 }
 
 export const getStatusConfig = (status: ApplicationStatus) => {

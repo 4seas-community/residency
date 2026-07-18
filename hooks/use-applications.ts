@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { withBasePath } from "@/lib/paths"
 import type { ProgramType, ApplicationStatus } from "@/lib/programs"
 import type { Application, AdminComment, CommentDraft } from "@/lib/applications/types"
+import { normalizeApplicationStatus } from "@/lib/applications/utils"
 
 /**
  * Centralizes all reads and writes for the admin applications dashboard.
@@ -15,9 +16,11 @@ export function useApplications(enabled = true) {
   const [comments, setComments] = useState<Record<string, AdminComment[]>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [savingCommentId, setSavingCommentId] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const fetchApplications = useCallback(async () => {
     setIsLoading(true)
+    setLoadError(null)
     try {
       const response = await fetch(withBasePath("/api/admin/applications"), { cache: "no-store" })
       if (!response.ok) throw new Error("Failed to load applications")
@@ -26,7 +29,10 @@ export function useApplications(enabled = true) {
         comments: AdminComment[]
       }
 
-      setApplications(data.applications || [])
+      setApplications((data.applications || []).map((application) => ({
+        ...application,
+        status: normalizeApplicationStatus(application.status),
+      })))
 
       const commentsByApp: Record<string, AdminComment[]> = {}
       ;(data.comments || []).forEach((comment) => {
@@ -38,6 +44,7 @@ export function useApplications(enabled = true) {
       setComments(commentsByApp)
     } catch (error) {
       console.error("Error fetching applications:", error)
+      setLoadError(error instanceof Error ? error.message : "Unable to load applications")
     } finally {
       setIsLoading(false)
     }
@@ -160,6 +167,7 @@ export function useApplications(enabled = true) {
     applications,
     comments,
     isLoading,
+    loadError,
     savingCommentId,
     fetchApplications,
     updateStatus,

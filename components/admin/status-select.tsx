@@ -1,6 +1,5 @@
-import { getStatusConfig } from "@/lib/programs"
+import { STATUS_CONFIG } from "@/lib/programs"
 import type { ApplicationStatus } from "@/lib/programs"
-import { ALL_STATUSES } from "@/lib/applications/types"
 
 interface StatusSelectProps {
   status: ApplicationStatus
@@ -10,19 +9,21 @@ interface StatusSelectProps {
 
 /** Status dropdown styled with the current status's colors. */
 export function StatusSelect({ status, onChange, className = "" }: StatusSelectProps) {
-  const config = getStatusConfig(status)
+  const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.new
+  const groups: { label: string; statuses: ApplicationStatus[] }[] = [
+    { label: "New", statuses: ["new", "reviewing"] },
+    { label: "In Progress", statuses: ["interview_needed", "interviewing"] },
+    { label: "Interview Result", statuses: ["interview_passed", "interview_rejected"] },
+    { label: "Final Decision", statuses: ["accepted", "accepted_post_interview", "rejected"] },
+  ]
 
   return (
     <select
       value={status}
       onChange={(e) => onChange(e.target.value as ApplicationStatus)}
-      className={`rounded border ${config.bgColor} ${config.color} ${className}`}
+      className={`cursor-pointer rounded border px-2 py-1 text-xs font-medium ${config.bgColor} ${config.color} ${className}`}
     >
-      {ALL_STATUSES.map((s) => (
-        <option key={s} value={s}>
-          {getStatusConfig(s).label}
-        </option>
-      ))}
+      {groups.map((group) => <optgroup key={group.label} label={group.label}>{group.statuses.map((item) => <option key={item} value={item}>{STATUS_CONFIG[item].label}</option>)}</optgroup>)}
     </select>
   )
 }

@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { Download, LogOut, RefreshCw, Users, Search, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, LogOut, RefreshCw, Users, Search, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { PROGRAMS, getStatusConfig, type ApplicationStatus } from "@/lib/programs"
+import { PROGRAMS, STATUS_CONFIG, STATUS_GROUPS, type ApplicationStatus } from "@/lib/programs"
 import type {
   ColumnSort,
   ColumnSortKey,
@@ -21,21 +21,13 @@ import {
   filterApplications,
   sortApplications,
   getCountByProgram,
+  getGroupCount,
   getStatusCount,
 } from "@/lib/applications/utils"
 import { withBasePath } from "@/lib/paths"
 import { useApplications } from "@/hooks/use-applications"
 import { ApplicationsTable } from "@/components/admin/applications-table"
 import { ApplicationCard } from "@/components/admin/application-card"
-
-const STATUS_CARDS: ApplicationStatus[] = [
-  "new",
-  "shortlisted",
-  "interview_needed",
-  "accepted",
-  "rejected",
-  "reviewing",
-]
 
 export default function AdminApplicationsPage() {
   const router = useRouter()
@@ -66,6 +58,7 @@ export default function AdminApplicationsPage() {
     applications,
     comments,
     isLoading,
+    loadError,
     savingCommentId,
     fetchApplications,
     updateStatus,
@@ -85,6 +78,8 @@ export default function AdminApplicationsPage() {
   const [startDateTo, setStartDateTo] = useState("")
   const [columnSort, setColumnSort] = useState<ColumnSort>({ key: null, direction: "asc" })
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({})
+  const [currentPage, setCurrentPage] = useState(1)
+  const applicationsPerPage = 20
 
   const handleLogout = async () => {
     try {
@@ -117,6 +112,18 @@ export default function AdminApplicationsPage() {
     columnSort,
     sortBy,
   )
+
+  const totalPages = Math.max(1, Math.ceil(visibleApps.length / applicationsPerPage))
+  const pageStart = (currentPage - 1) * applicationsPerPage
+  const paginatedApps = visibleApps.slice(pageStart, pageStart + applicationsPerPage)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [programFilter, statusFilter, searchQuery, startDateFrom, startDateTo, sortBy, columnSort])
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages))
+  }, [totalPages])
 
   const handleExportCsv = () => {
     if (visibleApps.length === 0) return
@@ -197,25 +204,31 @@ export default function AdminApplicationsPage() {
         </div>
 
         {/* Status Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-          {STATUS_CARDS.map((status) => {
-            const config = getStatusConfig(status)
-            const count = getStatusCount(applications, programFilter, status)
+        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {(Object.entries(STATUS_GROUPS) as [keyof typeof STATUS_GROUPS, typeof STATUS_GROUPS[keyof typeof STATUS_GROUPS]][]).map(([groupKey, group]) => {
+            const count = getGroupCount(applications, programFilter, groupKey)
+            const active = Array.isArray(statusFilter)
+              ? statusFilter.join() === group.statuses.join()
+              : group.statuses.includes(statusFilter as ApplicationStatus)
+            const styles = {
+              new: ["border-blue-200", "bg-blue-50", "bg-blue-500"],
+              in_progress: ["border-orange-200", "bg-orange-50", "bg-orange-500"],
+              accepted: ["border-green-200", "bg-green-50", "bg-green-500"],
+              rejected: ["border-red-200", "bg-red-50", "bg-red-500"],
+            }[groupKey]
             return (
-              <motion.button
-                key={status}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setStatusFilter(statusFilter === status ? "all" : status)}
-                className={`p-3 rounded-lg border transition-all text-left ${
-                  statusFilter === status
-                    ? `${config.bgColor} border-current ${config.color}`
-                    : "border-border bg-card hover:bg-muted/50"
-                }`}
-              >
-                <p className="text-xs text-muted-foreground mb-1">{config.label}</p>
-                <p className="text-xl font-bold">{count}</p>
-              </motion.button>
+              <div key={groupKey} className={`overflow-hidden rounded-xl border-2 ${active ? `${styles[0]} ${styles[1]}` : "border-border bg-card"}`}>
+                <motion.button whileTap={{ scale: 0.995 }} onClick={() => setStatusFilter(active ? "all" : group.statuses)} className="flex w-full items-start justify-between px-4 pb-2 pt-3 text-left">
+                  <div><p className="mb-0.5 text-xs font-semibold uppercase tracking-widest text-muted-foreground">{group.label}</p><p className="text-3xl font-bold leading-none tabular-nums">{count}</p></div>
+                  <span className={`mt-1 h-2.5 w-2.5 rounded-full ${styles[2]}`} />
+                </motion.button>
+                <div className="divide-y divide-border/30 border-t border-border/50">
+                  {group.statuses.map((status) => {
+                    const config = STATUS_CONFIG[status]
+                    return <button key={status} onClick={() => setStatusFilter(statusFilter === status ? "all" : status)} className={`flex w-full items-center justify-between px-4 py-2 text-left text-xs ${statusFilter === status ? `${config.bgColor} ${config.color} font-semibold` : "text-muted-foreground hover:bg-muted/60"}`}><span>{config.label}</span><span className="text-sm font-semibold tabular-nums text-foreground">{getStatusCount(applications, programFilter, status)}</span></button>
+                  })}
+                </div>
+              </div>
             )
           })}
         </div>
@@ -227,7 +240,7 @@ export default function AdminApplicationsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search by name, email, telegram, whatsapp..."
+              placeholder="Type any part of a name, email, or contact..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 pr-10"
@@ -303,7 +316,7 @@ export default function AdminApplicationsPage() {
 
           {/* Results Info */}
           <div className="text-sm text-muted-foreground">
-            Showing {visibleApps.length} of {applications.length} applications
+            {visibleApps.length > 0 ? `Showing ${pageStart + 1}–${Math.min(pageStart + applicationsPerPage, visibleApps.length)} of ${visibleApps.length} matching applications` : "Showing 0 matching applications"}
             {programFilter !== "all" && programFilter !== "other" && ` in ${PROGRAMS[programFilter].name}`}
           </div>
         </div>
@@ -314,6 +327,8 @@ export default function AdminApplicationsPage() {
             <RefreshCw className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
             <p className="mt-4 text-muted-foreground">Loading applications...</p>
           </div>
+        ) : loadError ? (
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-6 py-12 text-center"><p className="font-medium text-destructive">Applications could not be loaded.</p><p className="mt-2 text-sm text-muted-foreground">{loadError}</p><Button className="mt-4" variant="outline" onClick={fetchApplications}>Try again</Button></div>
         ) : visibleApps.length === 0 ? (
           <div className="text-center py-12 bg-card border border-border rounded-xl">
             <Users className="w-12 h-12 mx-auto text-muted-foreground/50" />
@@ -321,7 +336,7 @@ export default function AdminApplicationsPage() {
           </div>
         ) : viewMode === "table" ? (
           <ApplicationsTable
-            applications={visibleApps}
+            applications={paginatedApps}
             comments={comments}
             columnSort={columnSort}
             onColumnSort={handleColumnSort}
@@ -335,7 +350,7 @@ export default function AdminApplicationsPage() {
           />
         ) : (
           <div className="space-y-4">
-            {visibleApps.map((app, index) => (
+            {paginatedApps.map((app, index) => (
               <ApplicationCard
                 key={app.id}
                 app={app}
@@ -352,6 +367,9 @@ export default function AdminApplicationsPage() {
               />
             ))}
           </div>
+        )}
+        {!isLoading && !loadError && visibleApps.length > 0 && (
+          <nav className="mt-6 flex items-center justify-between border-t border-border pt-4"><p className="text-sm text-muted-foreground">Page {currentPage} of {totalPages}</p><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1}><ChevronLeft className="mr-1 h-4 w-4" />Previous</Button><Button variant="outline" size="sm" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages}>Next<ChevronRight className="ml-1 h-4 w-4" /></Button></div></nav>
         )}
       </main>
     </div>

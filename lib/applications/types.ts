@@ -74,14 +74,17 @@ export interface ColumnSort {
 }
 
 export type ProgramFilter = "all" | ProgramType | "other"
-export type StatusFilter = "all" | ApplicationStatus
+export type StatusFilter = "all" | ApplicationStatus | ApplicationStatus[]
 
 /** Statuses available in the status dropdowns, in display order. */
 export const ALL_STATUSES: ApplicationStatus[] = [
   "new",
-  "shortlisted",
-  "interview_needed",
-  "accepted",
-  "rejected",
   "reviewing",
+  "interview_needed",
+  "interviewing",
+  "interview_passed",
+  "interview_rejected",
+  "accepted",
+  "accepted_post_interview",
+  "rejected",
 ]

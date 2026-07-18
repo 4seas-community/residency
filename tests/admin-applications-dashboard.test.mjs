@@ -9,7 +9,10 @@ test("admin applications page keeps the dashboard controls", async () => {
   assert.match(source, /const \[viewMode, setViewMode\] = useState<"card" \| "table">\("table"\)/)
   assert.match(source, /const \[statusFilter, setStatusFilter\] = useState<StatusFilter>\("all"\)/)
   assert.match(source, /const \[sortBy, setSortBy\] = useState<SortType>\("newest"\)/)
-  assert.match(source, /Search by name, email, telegram, whatsapp\.\.\./)
+  assert.match(source, /Type any part of a name, email, or contact\.\.\./)
+  assert.match(source, /STATUS_GROUPS/)
+  assert.match(source, /applicationsPerPage = 20/)
+  assert.match(source, /Applications could not be loaded/)
   assert.match(source, /Newest First/)
 })
 

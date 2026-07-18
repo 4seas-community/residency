@@ -1,4 +1,4 @@
-import { PROGRAMS } from "@/lib/programs"
+import { PROGRAMS, STATUS_GROUPS } from "@/lib/programs"
 import type { ProgramType, ApplicationStatus } from "@/lib/programs"
 import type {
   Application,
@@ -31,7 +31,18 @@ export function getProgramColor(programType: ProgramType): string {
 }
 
 export function getProgramName(programType: ProgramType): string {
-  return PROGRAMS[programType]?.shortName || "Crypto"
+  return PROGRAMS[programType]?.shortName ?? "Other"
+}
+
+export function normalizeApplicationStatus(status: ApplicationStatus): ApplicationStatus {
+  const legacyStatusMap: Partial<Record<ApplicationStatus, ApplicationStatus>> = {
+    pending: "new",
+    shortlisted: "reviewing",
+    approved: "accepted",
+    waitlist: "rejected",
+    withdrawn: "rejected",
+  }
+  return legacyStatusMap[status] ?? status
 }
 
 /** Count applications matching a program filter (including the synthetic "other" bucket). */
@@ -59,9 +70,24 @@ export function getStatusCount(
   ).length
 }
 
+export function getGroupCount(
+  applications: Application[],
+  programFilter: ProgramFilter,
+  groupKey: keyof typeof STATUS_GROUPS,
+): number {
+  const statuses = STATUS_GROUPS[groupKey].statuses
+  return applications.filter((application) => {
+    const programMatches = programFilter === "all" ||
+      (programFilter === "other"
+        ? !Object.keys(PROGRAMS).includes(application.program_type)
+        : application.program_type === programFilter)
+    return programMatches && statuses.includes(application.status)
+  }).length
+}
+
 export interface ApplicationFilters {
   programFilter: ProgramFilter
-  statusFilter: "all" | ApplicationStatus
+  statusFilter: "all" | ApplicationStatus | ApplicationStatus[]
   startDateFrom: string
   startDateTo: string
   searchQuery: string
@@ -83,7 +109,11 @@ export function filterApplications(
     }
 
     // Status filter
-    if (statusFilter !== "all" && app.status !== statusFilter) return false
+    if (statusFilter !== "all") {
+      if (Array.isArray(statusFilter)) {
+        if (!statusFilter.includes(app.status)) return false
+      } else if (app.status !== statusFilter) return false
+    }
 
     // Start date range filter
     if (startDateFrom || startDateTo) {

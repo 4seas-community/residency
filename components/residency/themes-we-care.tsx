@@ -5,7 +5,7 @@ import { useInView } from "framer-motion"
 import { useRef } from "react"
 
 interface ThemesWeCareProps {
-  programType?: 'crypto' | 'art'
+  programType?: 'crypto' | 'art' | 'longevity'
 }
 
 const themes = {
@@ -37,6 +37,11 @@ const themes = {
     "Social Practice",
     "Visual Storytelling",
     "Art × Tech"
+  ],
+  longevity: [
+    "Longevity", "Biotech", "Sleep", "Nutrition", "Exercise", "Recovery",
+    "Biohacking", "Health Data", "De-Sci", "Mental Health", "Community Health",
+    "Longevity × Crypto"
   ]
 }
 
@@ -44,7 +49,7 @@ export function ThemesWeCare({ programType = 'crypto' }: ThemesWeCareProps) {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: "-100px" })
   const items = themes[programType]
-  const accentColor = programType === 'art' ? '#e11d48' : undefined
+  const accentColor = programType === 'art' ? '#e11d48' : programType === 'longevity' ? '#10b981' : undefined
 
   return (
     <section ref={ref} className="py-12 px-4 md:px-8 bg-muted/30">

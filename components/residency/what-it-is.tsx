@@ -5,7 +5,7 @@ import { useInView } from "framer-motion"
 import { useRef } from "react"
 
 interface WhatItIsProps {
-  programType?: 'crypto' | 'art'
+  programType?: 'crypto' | 'art' | 'longevity'
 }
 
 const content = {
@@ -18,6 +18,11 @@ const content = {
     description1: "A residency dedicated to technology art, crypto art, and new media art. This residency is not only concerned with technology as a tool, but with how technology transforms perception, artistic production, identity, social connection, and cultural imagination.",
     description2: "Artificial intelligence, blockchain, smart contracts, encrypted identity, on-chain communities, interactive media, generative systems, networked spaces, and decentralized collaboration are redefining how art is created, circulated, collected, and experienced. Through this residency, we hope to bring these ongoing transformations beyond abstract concepts, online platforms, and digital discussions, into physical space, everyday life, and public exchange.",
     highlight: "Art is not an isolated individual production, and technology is not merely a tool or topic. Both become ways of reconnecting with place, community, embodied experience, and public life."
+  },
+  longevity: {
+    description1: "We believe that longevity is not about living longer, but about living with more meaning. In the world's so-called \"Blue Zones\" — Okinawa, Sardinia, Nicoya — people live longer not simply because of diet and exercise, but because they have a clear sense of purpose, strong social connections, and ongoing contribution to their communities.",
+    description2: "The core of longevity is not mere extension of years, but living meaningfully. With this philosophy, we have launched the Zuzalu Longevity Residency — a co-creation opportunity for professionals, artists, entrepreneurs, and health enthusiasts to live together, practice together, and explore new possibilities for future healthy lifestyles in Chiang Mai. We care not only about longevity technologies themselves, but also about how health integrates into daily life, how community supports long-term healthy behaviors, and what forms a future healthy society might take.",
+    highlight: "Not a clinic. Not a retreat. A residency for living, experimenting, and building a healthier future together."
   }
 }
 

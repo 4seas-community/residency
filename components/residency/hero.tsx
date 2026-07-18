@@ -8,7 +8,7 @@ import { Header } from "@/components/shared/header"
 import { withBasePath } from "@/lib/paths"
 
 interface HeroProps {
-  programType?: 'crypto' | 'art'
+  programType?: 'crypto' | 'art' | 'longevity'
   title?: string
   tagline?: string
   description?: string
@@ -40,7 +40,7 @@ export function Hero({
           transition={{ duration: 1.5, ease: "easeOut" }}
         >
           <img 
-            src={withBasePath(programType === 'art' ? '/images/art.png' : '/images/crypto.png')}
+            src={withBasePath(programType === 'art' ? '/images/art.png' : programType === 'longevity' ? '/images/longevity.png' : '/images/crypto.png')}
             alt="" 
             className="w-full h-full object-cover"
           />

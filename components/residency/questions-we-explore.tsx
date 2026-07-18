@@ -5,7 +5,7 @@ import { useInView } from "framer-motion"
 import { useRef } from "react"
 
 interface QuestionsWeExploreProps {
-  programType?: 'crypto' | 'art'
+  programType?: 'crypto' | 'art' | 'longevity'
 }
 
 const questions = {
@@ -23,6 +23,12 @@ const questions = {
     "How can privacy, anonymity, verification, consensus, and protocol be translated into artistic language?",
     "How can new media art respond to real communities beyond screens and platforms?",
     "How can technology-based art generate new public conversations within a local context?"
+  ],
+  longevity: [
+    "How can we extend healthspan?",
+    "How can we better understand ourselves through practice and data?",
+    "How can we build mechanisms within a community that support long-term healthy behaviors?",
+    "How can we build better longevity communities?"
   ]
 }
 

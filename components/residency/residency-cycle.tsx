@@ -8,15 +8,15 @@ import { Calendar, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface ResidencyCycleProps {
-  programType?: 'crypto' | 'art'
+  programType?: 'crypto' | 'art' | 'longevity'
 }
 
 export function ResidencyCycle({ programType = 'crypto' }: ResidencyCycleProps) {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: "-100px" })
   
-  const applyLink = programType === 'art' ? '/art/apply' : '/crypto/apply'
-  const accentColor = programType === 'art' ? '#e11d48' : undefined
+  const applyLink = programType === 'art' ? '/art/apply' : programType === 'longevity' ? '/longevity/apply' : '/crypto/apply'
+  const accentColor = programType === 'art' ? '#e11d48' : programType === 'longevity' ? '#10b981' : undefined
 
   return (
     <section ref={ref} className="py-12 px-4 md:px-8 bg-secondary/30">

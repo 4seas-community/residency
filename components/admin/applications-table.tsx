@@ -1,208 +1,62 @@
 "use client"
 
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
-import { getStatusConfig } from "@/lib/programs"
-import type { ProgramType, ApplicationStatus } from "@/lib/programs"
-import type {
-  Application,
-  AdminComment,
-  ColumnSort,
-  ColumnSortKey,
-  CommentDraft,
-} from "@/lib/applications/types"
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye } from "lucide-react"
+import type { ApplicationStatus, ProgramType } from "@/lib/programs"
+import type { Application, AdminComment, ColumnSort, ColumnSortKey } from "@/lib/applications/types"
 import { formatDateTimeGMT7 } from "@/lib/applications/utils"
-import { ExternalLink } from "@/components/admin/external-link"
+import { Button } from "@/components/ui/button"
 import { StatusSelect } from "@/components/admin/status-select"
 import { TrackBadge } from "@/components/admin/track-badge"
-import { CommentComposer } from "@/components/admin/comment-composer"
 
 interface ApplicationsTableProps {
   applications: Application[]
   comments: Record<string, AdminComment[]>
   columnSort: ColumnSort
   onColumnSort: (key: ColumnSortKey) => void
-  expandedComments: Record<string, boolean>
-  onToggleComments: (id: string) => void
-  savingCommentId: string | null
+  onOpen: (application: Application) => void
   onUpdateStatus: (id: string, status: ApplicationStatus) => void
   onUpdateProgramType: (id: string, program: ProgramType | "other") => void
   onUpdateActualStartDate: (id: string, date: string) => void
-  onAddComment: (id: string, draft: CommentDraft) => Promise<boolean>
 }
 
-export function ApplicationsTable({
-  applications,
-  comments,
-  columnSort,
-  onColumnSort,
-  expandedComments,
-  onToggleComments,
-  savingCommentId,
-  onUpdateStatus,
-  onUpdateProgramType,
-  onUpdateActualStartDate,
-  onAddComment,
-}: ApplicationsTableProps) {
-  const SortableHeader = ({
-    label,
-    sortKey,
-    className = "",
-  }: {
-    label: string
-    sortKey: ColumnSortKey
-    className?: string
-  }) => (
-    <th
-      className={`px-3 py-3 text-left font-semibold cursor-pointer hover:bg-muted/50 transition-colors select-none ${className}`}
-      onClick={() => onColumnSort(sortKey)}
-    >
-      <div className="flex items-center gap-1">
+export function ApplicationsTable({ applications, comments, columnSort, onColumnSort, onOpen, onUpdateStatus, onUpdateProgramType, onUpdateActualStartDate }: ApplicationsTableProps) {
+  const SortableHeader = ({ label, sortKey }: { label: string; sortKey: ColumnSortKey }) => (
+    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">
+      <button type="button" className="flex items-center gap-1.5 whitespace-nowrap hover:text-foreground" onClick={() => onColumnSort(sortKey)}>
         {label}
-        {columnSort.key === sortKey ? (
-          columnSort.direction === "asc" ? (
-            <ArrowUp className="w-3 h-3" />
-          ) : (
-            <ArrowDown className="w-3 h-3" />
-          )
-        ) : (
-          <ArrowUpDown className="w-3 h-3 opacity-30" />
-        )}
-      </div>
+        {columnSort.key === sortKey ? (columnSort.direction === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />) : <ArrowUpDown className="size-3 opacity-40" />}
+      </button>
     </th>
   )
+  const stopRowOpen = (event: React.SyntheticEvent) => event.stopPropagation()
 
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-muted border-b">
-            <tr>
-              <SortableHeader label="Submitted (GMT+7)" sortKey="created_at" />
-              <SortableHeader label="Track" sortKey="program_type" />
-              <SortableHeader label="Name" sortKey="full_name" />
-              <SortableHeader label="Email" sortKey="email" />
-              <th className="px-3 py-3 text-left font-semibold">Contact</th>
-              <th className="px-3 py-3 text-left font-semibold">Country</th>
-              <SortableHeader label="Start Date" sortKey="preferred_start_date" />
-              <th className="px-3 py-3 text-left font-semibold">Actual Start Date</th>
-              <th className="px-3 py-3 text-left font-semibold min-w-[300px]">About You</th>
-              <th className="px-3 py-3 text-left font-semibold min-w-[300px]">Proposed Contribution</th>
-              <th className="px-3 py-3 text-left font-semibold">Portfolio/Website</th>
-              <th className="px-3 py-3 text-left font-semibold">LinkedIn</th>
-              <th className="px-3 py-3 text-left font-semibold">GitHub/Social</th>
-              <th className="px-3 py-3 text-left font-semibold min-w-[150px]">Content Studio</th>
-              <SortableHeader label="Status" sortKey="status" />
-              <th className="px-3 py-3 text-left font-semibold min-w-[200px]">Comments</th>
-            </tr>
-          </thead>
-          <tbody>
+        <table className="w-full table-fixed text-sm">
+          <thead className="border-b border-border bg-muted/50"><tr>
+            <SortableHeader label="Applicant" sortKey="full_name" />
+            <SortableHeader label="Track" sortKey="program_type" />
+            <SortableHeader label="Submitted" sortKey="created_at" />
+            <th className="w-32 px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Location</th>
+            <SortableHeader label="Preferred" sortKey="preferred_start_date" />
+            <th className="w-40 px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Actual start</th>
+            <SortableHeader label="Status" sortKey="status" />
+            <th className="w-24 px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Details</th>
+          </tr></thead>
+          <tbody className="divide-y divide-border">
             {applications.map((app) => {
-              const appComments = comments[app.id] || []
-
-              return (
-                <tr key={app.id} className="border-b hover:bg-muted/30 align-top">
-                  <td className="px-3 py-4 text-xs whitespace-nowrap">
-                    {formatDateTimeGMT7(app.created_at)}
-                  </td>
-                  <td className="px-3 py-4 relative group/track">
-                    <TrackBadge
-                      programType={app.program_type}
-                      onMove={(program) => onUpdateProgramType(app.id, program)}
-                    />
-                  </td>
-                  <td className="px-3 py-4 font-medium">{app.full_name}</td>
-                  <td className="px-3 py-4 text-xs break-all">{app.email}</td>
-                  <td className="px-3 py-4 text-xs">
-                    <div className="space-y-1">
-                      {app.telegram && <div>TG: {app.telegram}</div>}
-                      {app.whatsapp && <div>WA: {app.whatsapp}</div>}
-                      {app.contact_info && <div>{app.contact_info}</div>}
-                    </div>
-                  </td>
-                  <td className="px-3 py-4 text-xs">{app.country || "-"}</td>
-                  <td className="px-3 py-4 text-xs">{app.preferred_start_date}</td>
-                  <td className="px-3 py-4 text-xs">
-                    <input
-                      type="date"
-                      value={app.actual_start_date || ""}
-                      onChange={(e) => onUpdateActualStartDate(app.id, e.target.value)}
-                      className="bg-background border border-border rounded px-2 py-1 text-xs"
-                    />
-                  </td>
-                  <td className="px-3 py-4">
-                    <p className="text-sm whitespace-pre-wrap max-h-[150px] overflow-y-auto leading-relaxed">
-                      {app.about_and_contribution}
-                    </p>
-                  </td>
-                  <td className="px-3 py-4">
-                    <p className="text-sm whitespace-pre-wrap max-h-[150px] overflow-y-auto leading-relaxed">
-                      {app.proposed_contribution || "-"}
-                    </p>
-                  </td>
-                  <td className="px-3 py-4 text-xs">
-                    {app.social_links ? (
-                      <ExternalLink url={app.social_links} />
-                    ) : app.portfolio_url ? (
-                      <ExternalLink url={app.portfolio_url} />
-                    ) : (
-                      <ExternalLink url={app.website} />
-                    )}
-                  </td>
-                  <td className="px-3 py-4 text-xs">
-                    <ExternalLink url={app.linkedin_link} />
-                  </td>
-                  <td className="px-3 py-4 text-xs">
-                    <ExternalLink url={app.github_link} />
-                  </td>
-                  <td className="px-3 py-4 text-xs">{app.needs_support || "-"}</td>
-                  <td className="px-3 py-4">
-                    <div className="space-y-2">
-                      <StatusSelect
-                        status={app.status}
-                        onChange={(status) => onUpdateStatus(app.id, status)}
-                        className="text-xs px-2 py-1"
-                      />
-                      {app.reviewed_at && (
-                        <p className="text-[10px] text-muted-foreground">
-                          {new Date(app.reviewed_at).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-3 py-4 min-w-[200px]">
-                    <div className="space-y-2">
-                      <span className="text-xs bg-muted rounded px-2 py-1">
-                        {appComments.length} comments
-                      </span>
-                      {appComments.length > 0 && (
-                        <div className="max-h-[100px] overflow-y-auto space-y-1">
-                          {appComments.slice(0, 2).map((comment) => (
-                            <div key={comment.id} className="text-xs bg-muted/50 rounded p-2">
-                              <span className="font-medium">{comment.reviewer_name}</span>
-                              <p className="text-muted-foreground">{comment.comment.slice(0, 80)}...</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <button
-                        onClick={() => onToggleComments(app.id)}
-                        className="text-[10px] text-primary hover:underline"
-                      >
-                        {expandedComments[app.id] ? "Close" : "Add Comment"}
-                      </button>
-                      {expandedComments[app.id] && (
-                        <CommentComposer
-                          applicationId={app.id}
-                          saving={savingCommentId === app.id}
-                          onSubmit={onAddComment}
-                          onSubmitted={() => onToggleComments(app.id)}
-                          variant="table"
-                        />
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              )
+              const commentCount = comments[app.id]?.length ?? 0
+              return <tr key={app.id} tabIndex={0} role="button" onClick={() => onOpen(app)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(app) } }} className="h-20 cursor-pointer align-middle transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none">
+                <td className="w-64 px-4 py-3"><p className="truncate font-medium">{app.full_name}</p><p className="truncate text-xs text-muted-foreground">{app.email}</p></td>
+                <td className="w-36 px-4 py-3" onClick={stopRowOpen} onKeyDown={stopRowOpen}><TrackBadge programType={app.program_type} onMove={(program) => onUpdateProgramType(app.id, program)} /></td>
+                <td className="w-40 px-4 py-3 text-xs text-muted-foreground">{formatDateTimeGMT7(app.created_at)}</td>
+                <td className="w-32 px-4 py-3"><p className="truncate">{app.city || app.current_location || app.country || "—"}</p>{app.country && app.city && <p className="truncate text-xs text-muted-foreground">{app.country}</p>}</td>
+                <td className="w-36 px-4 py-3 text-xs">{app.preferred_start_date || "—"}</td>
+                <td className="w-40 px-4 py-3" onClick={stopRowOpen} onKeyDown={stopRowOpen}><input type="date" aria-label={`Actual start date for ${app.full_name}`} value={app.actual_start_date || ""} onChange={(event) => onUpdateActualStartDate(app.id, event.target.value)} className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs" /></td>
+                <td className="w-44 px-4 py-3" onClick={stopRowOpen} onKeyDown={stopRowOpen}><StatusSelect status={app.status} onChange={(status) => onUpdateStatus(app.id, status)} className="max-w-full" /></td>
+                <td className="w-24 px-4 py-3 text-right"><Button type="button" variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); onOpen(app) }} aria-label={`View ${app.full_name}'s application`}><Eye /><span className="sr-only">View application</span></Button>{commentCount > 0 && <p className="mt-1 whitespace-nowrap text-xs text-muted-foreground">{commentCount} note{commentCount === 1 ? "" : "s"}</p>}</td>
+              </tr>
             })}
           </tbody>
         </table>

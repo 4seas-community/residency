@@ -45,19 +45,19 @@ export function QuestionsWeExplore({ programType = 'crypto' }: QuestionsWeExplor
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.8 }}
         >
-          <h2 className="text-3xl md:text-4xl font-sans font-semibold text-foreground mb-6">
+          <h2 className="mb-8 font-sans text-3xl font-semibold text-foreground md:text-4xl">
             Questions We Explore
           </h2>
           
-          <div className="space-y-1">
+          <div className="grid gap-3 md:grid-cols-2">
             {items.map((question, index) => (
               <motion.div
-                key={index}
-                className="relative py-3 px-4 rounded-lg"
-                initial={{ opacity: 0, x: -20 }}
-                animate={isInView ? { opacity: 1, x: 0 } : {}}
+                key={question}
+                className="flex min-h-24 items-start rounded-xl border border-border bg-card p-5"
+                initial={{ opacity: 0, y: 20 }}
+                animate={isInView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.4, delay: index * 0.08 }}
-                whileHover={{ x: 8 }}
+                whileHover={{ y: -2 }}
               >
                 <p className="relative text-base leading-relaxed text-pretty text-muted-foreground">
                   {question}

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { PROGRAMS, STATUS_CONFIG, STATUS_GROUPS, type ApplicationStatus } from "@/lib/programs"
 import type {
+  Application,
   ColumnSort,
   ColumnSortKey,
   ProgramFilter,
@@ -28,6 +29,7 @@ import { withBasePath } from "@/lib/paths"
 import { useApplications } from "@/hooks/use-applications"
 import { ApplicationsTable } from "@/components/admin/applications-table"
 import { ApplicationCard } from "@/components/admin/application-card"
+import { ApplicationDetailsSheet } from "@/components/admin/application-details-sheet"
 
 export default function AdminApplicationsPage() {
   const router = useRouter()
@@ -79,6 +81,7 @@ export default function AdminApplicationsPage() {
   const [columnSort, setColumnSort] = useState<ColumnSort>({ key: null, direction: "asc" })
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({})
   const [currentPage, setCurrentPage] = useState(1)
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null)
   const applicationsPerPage = 20
 
   const handleLogout = async () => {
@@ -116,6 +119,9 @@ export default function AdminApplicationsPage() {
   const totalPages = Math.max(1, Math.ceil(visibleApps.length / applicationsPerPage))
   const pageStart = (currentPage - 1) * applicationsPerPage
   const paginatedApps = visibleApps.slice(pageStart, pageStart + applicationsPerPage)
+  const selectedApplication: Application | null = selectedApplicationId
+    ? applications.find((application) => application.id === selectedApplicationId) ?? null
+    : null
 
   useEffect(() => {
     setCurrentPage(1)
@@ -340,30 +346,22 @@ export default function AdminApplicationsPage() {
             comments={comments}
             columnSort={columnSort}
             onColumnSort={handleColumnSort}
-            expandedComments={expandedComments}
-            onToggleComments={toggleComments}
-            savingCommentId={savingCommentId}
+            onOpen={(application) => setSelectedApplicationId(application.id)}
             onUpdateStatus={updateStatus}
             onUpdateProgramType={updateProgramType}
             onUpdateActualStartDate={updateActualStartDate}
-            onAddComment={addComment}
           />
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {paginatedApps.map((app, index) => (
               <ApplicationCard
                 key={app.id}
                 app={app}
                 index={index}
                 comments={comments[app.id] || []}
-                expanded={!!expandedComments[app.id]}
-                onToggleComments={toggleComments}
-                savingCommentId={savingCommentId}
+                onOpen={(application) => setSelectedApplicationId(application.id)}
                 onUpdateStatus={updateStatus}
                 onUpdateProgramType={updateProgramType}
-                onUpdateActualStartDate={updateActualStartDate}
-                onAddComment={addComment}
-                onDeleteComment={deleteComment}
               />
             ))}
           </div>
@@ -371,6 +369,20 @@ export default function AdminApplicationsPage() {
         {!isLoading && !loadError && visibleApps.length > 0 && (
           <nav className="mt-6 flex items-center justify-between border-t border-border pt-4"><p className="text-sm text-muted-foreground">Page {currentPage} of {totalPages}</p><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1}><ChevronLeft className="mr-1 h-4 w-4" />Previous</Button><Button variant="outline" size="sm" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages}>Next<ChevronRight className="ml-1 h-4 w-4" /></Button></div></nav>
         )}
+        <ApplicationDetailsSheet
+          application={selectedApplication}
+          comments={selectedApplication ? comments[selectedApplication.id] || [] : []}
+          open={selectedApplication !== null}
+          onOpenChange={(open) => { if (!open) setSelectedApplicationId(null) }}
+          commentExpanded={selectedApplication ? !!expandedComments[selectedApplication.id] : false}
+          savingCommentId={savingCommentId}
+          onToggleComments={toggleComments}
+          onUpdateStatus={updateStatus}
+          onUpdateProgramType={updateProgramType}
+          onUpdateActualStartDate={updateActualStartDate}
+          onAddComment={addComment}
+          onDeleteComment={deleteComment}
+        />
       </main>
     </div>
   )

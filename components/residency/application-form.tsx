@@ -237,6 +237,19 @@ export default function ApplicationForm({ programType, programTitle, programColo
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-8">
+      {programType === 'longevity' && (
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="border-b border-border px-6 py-4"><h2 className="text-base font-semibold">Process &amp; Duration</h2></div>
+          <div className="space-y-6 p-6">
+            <div><h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Application Process</h3><div className="grid gap-3 sm:grid-cols-3">{[
+              ['1', 'Apply', 'Tell us about yourself and what you hope to explore.'],
+              ['2', 'Review', 'Our team reviews applications on a rolling basis.'],
+              ['3', 'Confirm', 'Selected residents coordinate dates and practical details.'],
+            ].map(([step, title, description]) => <div key={step} className="rounded-lg bg-muted/50 p-4"><span className="text-xs font-semibold text-emerald-600">STEP {step}</span><p className="mt-1 font-medium">{title}</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p></div>)}</div></div>
+            <div><h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Residency Duration</h3><p className="text-sm leading-relaxed text-muted-foreground">Residencies generally run for two weeks to one month. Longer stays can be discussed based on the project and community contribution.</p></div>
+          </div>
+        </div>
+      )}
       {/* Personal Information Section */}
       <div className="space-y-6">
         <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">PERSONAL INFORMATION</h2>
@@ -345,7 +358,7 @@ export default function ApplicationForm({ programType, programTitle, programColo
         
         <div className="space-y-2">
           <Label>
-            {programType === 'art' ? 'Portfolio or Personal Website' : 'Your Social Media, Personal Website or Publications'} <span className="text-red-500">*</span>
+            {programType === 'art' ? 'Portfolio or Personal Website' : programType === 'longevity' ? 'Your Website, Research, Social Media or Publications' : 'Your Social Media, Personal Website or Publications'} <span className="text-red-500">*</span>
           </Label>
           <p className="text-sm text-muted-foreground">
             At least provide one link, so that we can know a bit more from you.
@@ -367,11 +380,12 @@ export default function ApplicationForm({ programType, programTitle, programColo
         </div>
 
         <div className="space-y-2">
-          <Label>{programType === 'art' ? 'Social Media' : 'GitHub'}</Label>
+          <Label>{programType === 'art' ? 'Social Media' : programType === 'longevity' ? 'Additional Information' : 'GitHub'}</Label>
+          {programType === 'longevity' && <p className="text-sm text-muted-foreground">Optional additional link or brief note that helps us understand your work.</p>}
           <Input
             value={formData.github}
             onChange={(e) => handleInputChange('github', e.target.value)}
-            placeholder={programType === 'art' ? 'Instagram, X, Behance, etc.' : 'https://github.com/...'}
+            placeholder={programType === 'art' ? 'Instagram, X, Behance, etc.' : programType === 'longevity' ? 'Additional link or brief note...' : 'https://github.com/...'}
           />
         </div>
       </div>

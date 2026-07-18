@@ -28,3 +28,10 @@ test("duplicate basePath URLs redirect to the canonical route", async () => {
   assert.match(nextConfigSource, /source: `\$\{basePath\}\/:path\*`/)
   assert.match(nextConfigSource, /destination: "\/:path\*"/)
 })
+
+test("legacy generic application route redirects to the crypto application", async () => {
+  const nextConfigSource = await readFile(new URL("../next.config.mjs", import.meta.url), "utf8")
+
+  assert.match(nextConfigSource, /source: "\/apply"/)
+  assert.match(nextConfigSource, /destination: "\/crypto\/apply"/)
+})

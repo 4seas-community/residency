@@ -9,9 +9,14 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 const _playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-serif' });
 
 export const metadata: Metadata = {
-  title: '4Seas Crypto Residency Program | Chiang Mai',
-  description: 'A community-based residency program for crypto builders, researchers, and creators in Chiang Mai. Live with the community. Build in public, build in person.',
+  title: '4Seas Residency Programs | Chiang Mai',
+  description: '4Seas Residency is a community-based residency program in Chiang Mai for builders, artists, researchers, founders, creators, and long-term thinkers.',
   generator: 'v0.app',
+  openGraph: {
+    title: '4Seas Residency Programs | Chiang Mai',
+    description: '4Seas Residency is a community-based residency program in Chiang Mai for builders, artists, researchers, founders, creators, and long-term thinkers.',
+    type: 'website',
+  },
   icons: {
     icon: [
       {

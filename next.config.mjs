@@ -24,11 +24,18 @@ const nextConfig = {
     unoptimized: true,
   },
   async redirects() {
-    if (!basePath) {
-      return []
-    }
+    const redirects = [
+      {
+        source: "/apply",
+        destination: "/crypto/apply",
+        permanent: false,
+      },
+    ]
+
+    if (!basePath) return redirects
 
     return [
+      ...redirects,
       {
         source: `${basePath}/:path*`,
         destination: "/:path*",

@@ -15,7 +15,6 @@ interface TrackBadgeProps {
  * state) to move the application to another track.
  */
 export function TrackBadge({ programType, onMove }: TrackBadgeProps) {
-  const resolvedType = programType || "crypto"
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null)
 
   // Close the menu when clicking anywhere else on the page.
@@ -41,11 +40,11 @@ export function TrackBadge({ programType, onMove }: TrackBadgeProps) {
     <div className="relative inline-block">
       <span
         className="px-2 py-1 rounded text-xs font-medium text-white cursor-context-menu"
-        style={{ backgroundColor: getProgramColor(resolvedType) }}
+        style={{ backgroundColor: getProgramColor(programType) }}
         title="Right-click to move to another track"
         onContextMenu={handleContextMenu}
       >
-        {getProgramName(resolvedType)}
+        {getProgramName(programType)}
       </span>
 
       {menuPosition && (

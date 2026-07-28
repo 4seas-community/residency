@@ -16,6 +16,17 @@ test("admin applications page keeps the dashboard controls", async () => {
   assert.match(source, /Newest First/)
 })
 
+test("sortable table header is stable across table renders", async () => {
+  const source = await readFile(new URL("../components/admin/applications-table.tsx", import.meta.url), "utf8")
+  const headerIndex = source.indexOf("function SortableHeader")
+  const tableIndex = source.indexOf("export function ApplicationsTable")
+
+  assert.ok(headerIndex >= 0, "SortableHeader must be declared")
+  assert.ok(tableIndex >= 0, "ApplicationsTable must be declared")
+  assert.ok(headerIndex < tableIndex, "SortableHeader must be declared outside ApplicationsTable")
+  assert.match(source, /columnSort=\{columnSort\} onColumnSort=\{onColumnSort\}/)
+})
+
 test("filtering, sorting and CSV export live in lib/applications/utils", async () => {
   const pageSource = await readFile(new URL("../app/admin/applications/page.tsx", import.meta.url), "utf8")
   const utilsSource = await readFile(new URL("../lib/applications/utils.ts", import.meta.url), "utf8")

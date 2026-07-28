@@ -19,8 +19,15 @@ interface ApplicationsTableProps {
   onUpdateActualStartDate: (id: string, date: string) => void
 }
 
-export function ApplicationsTable({ applications, comments, columnSort, onColumnSort, onOpen, onUpdateStatus, onUpdateProgramType, onUpdateActualStartDate }: ApplicationsTableProps) {
-  const SortableHeader = ({ label, sortKey }: { label: string; sortKey: ColumnSortKey }) => (
+interface SortableHeaderProps {
+  label: string
+  sortKey: ColumnSortKey
+  columnSort: ColumnSort
+  onColumnSort: (key: ColumnSortKey) => void
+}
+
+function SortableHeader({ label, sortKey, columnSort, onColumnSort }: SortableHeaderProps) {
+  return (
     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">
       <button type="button" className="flex items-center gap-1.5 whitespace-nowrap hover:text-foreground" onClick={() => onColumnSort(sortKey)}>
         {label}
@@ -28,6 +35,9 @@ export function ApplicationsTable({ applications, comments, columnSort, onColumn
       </button>
     </th>
   )
+}
+
+export function ApplicationsTable({ applications, comments, columnSort, onColumnSort, onOpen, onUpdateStatus, onUpdateProgramType, onUpdateActualStartDate }: ApplicationsTableProps) {
   const stopRowOpen = (event: React.SyntheticEvent) => event.stopPropagation()
 
   return (
@@ -35,13 +45,13 @@ export function ApplicationsTable({ applications, comments, columnSort, onColumn
       <div className="overflow-x-auto">
         <table className="w-full table-fixed text-sm">
           <thead className="border-b border-border bg-muted/50"><tr>
-            <SortableHeader label="Applicant" sortKey="full_name" />
-            <SortableHeader label="Track" sortKey="program_type" />
-            <SortableHeader label="Submitted" sortKey="created_at" />
+            <SortableHeader label="Applicant" sortKey="full_name" columnSort={columnSort} onColumnSort={onColumnSort} />
+            <SortableHeader label="Track" sortKey="program_type" columnSort={columnSort} onColumnSort={onColumnSort} />
+            <SortableHeader label="Submitted" sortKey="created_at" columnSort={columnSort} onColumnSort={onColumnSort} />
             <th className="w-32 px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Location</th>
-            <SortableHeader label="Preferred" sortKey="preferred_start_date" />
+            <SortableHeader label="Preferred" sortKey="preferred_start_date" columnSort={columnSort} onColumnSort={onColumnSort} />
             <th className="w-40 px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Actual start</th>
-            <SortableHeader label="Status" sortKey="status" />
+            <SortableHeader label="Status" sortKey="status" columnSort={columnSort} onColumnSort={onColumnSort} />
             <th className="w-24 px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Details</th>
           </tr></thead>
           <tbody className="divide-y divide-border">

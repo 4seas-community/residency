@@ -78,7 +78,7 @@ function ProgramCard({ program, index }: { program: ReturnType<typeof getVisible
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background/60 to-transparent" />
         <div className={`absolute top-3 left-3 md:top-4 md:left-4 ${theme.bg} ${theme.text} px-2 py-0.5 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium backdrop-blur-sm`}>
-          {program.cohortStartDate === 'Coming Soon' ? 'Coming Soon' : 'Now Open'}
+          {program.isActive ? 'Now Open' : 'Coming Soon'}
         </div>
       </div>
       

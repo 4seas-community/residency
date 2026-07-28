@@ -14,6 +14,15 @@ test("lib/programs defines exactly the three residency tracks", async () => {
   }
 })
 
+test("hub status badges use the same active state as program detail pages", async () => {
+  const hubSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8")
+  const programsSource = await readFile(new URL("../lib/programs.ts", import.meta.url), "utf8")
+
+  assert.match(hubSource, /program\.isActive \? 'Now Open' : 'Coming Soon'/)
+  assert.doesNotMatch(hubSource, /program\.cohortStartDate === 'Coming Soon'/)
+  assert.match(programsSource, /longevity: \{[\s\S]*?isActive: true,[\s\S]*?cohortStartDate: 'Coming Soon'/)
+})
+
 test("every track ships a page and an apply page wired to the shared form", async () => {
   for (const program of programs) {
     const page = await readFile(new URL(`../app/${program}/page.tsx`, import.meta.url), "utf8")

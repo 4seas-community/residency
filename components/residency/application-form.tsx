@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { withBasePath } from "@/lib/paths"
+import { ABOUT_RESPONSE_CHARACTER_LIMIT, getRemainingAboutCharacters, isAboutResponseOverCharacterLimit } from "@/lib/application-limits"
 
-export type ProgramType = 'crypto' | 'art'
+export type ProgramType = 'crypto' | 'art' | 'longevity'
 
 interface ApplicationFormProps {
   programType: ProgramType
@@ -50,11 +51,11 @@ const initialFormData: FormData = {
 const generateStartDates = () => {
   const dates: { value: string; label: string }[] = []
   const startDates = [
-    { year: 2025, month: 5, day: 15 }, // June 15
-    { year: 2025, month: 6, day: 1 },  // July 1
-    { year: 2025, month: 6, day: 15 }, // July 15
-    { year: 2025, month: 7, day: 1 },  // August 1
-    { year: 2025, month: 7, day: 15 }, // August 15
+    { year: 2026, month: 6, day: 15 }, // July 15
+    { year: 2026, month: 7, day: 1 },  // August 1
+    { year: 2026, month: 7, day: 15 }, // August 15
+    { year: 2026, month: 8, day: 1 },  // September 1
+    { year: 2026, month: 8, day: 15 }, // September 15
   ]
   
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -82,13 +83,8 @@ export default function ApplicationForm({ programType, programTitle, programColo
     setError(null)
   }
 
-  // Count words in text
-  const countWords = (text: string) => {
-    return text.trim().split(/\s+/).filter(word => word.length > 0).length
-  }
-
-  const wordCount = countWords(formData.about_you)
-  const isOverLimit = wordCount > 300
+  const remainingCharacters = getRemainingAboutCharacters(formData.about_you)
+  const isOverLimit = isAboutResponseOverCharacterLimit(formData.about_you)
 
   const validateForm = () => {
     if (!formData.name.trim()) {
@@ -111,8 +107,8 @@ export default function ApplicationForm({ programType, programTitle, programColo
       setError('Please tell us about yourself')
       return false
     }
-    if (countWords(formData.about_you) > 300) {
-      setError('Please keep your response under 300 words')
+    if (isAboutResponseOverCharacterLimit(formData.about_you)) {
+      setError(`Please keep your response under ${ABOUT_RESPONSE_CHARACTER_LIMIT} characters`)
       return false
     }
     if (!formData.proposed_contribution.trim()) {
@@ -324,7 +320,7 @@ export default function ApplicationForm({ programType, programTitle, programColo
             We value curiosity, openness, and a willingness to participate in community life.
           </p>
           <p className="text-sm text-muted-foreground italic">
-            (Please keep your response under 300 words.)
+            (Please keep your response under {ABOUT_RESPONSE_CHARACTER_LIMIT} characters.)
           </p>
           <Textarea
             value={formData.about_you}
@@ -334,7 +330,7 @@ export default function ApplicationForm({ programType, programTitle, programColo
             className={isOverLimit ? 'border-red-500 focus-visible:ring-red-500' : ''}
           />
           <p className={`text-xs ${isOverLimit ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}>
-            {wordCount}/300 words {isOverLimit && '- Please reduce your response'}
+            {remainingCharacters} characters remaining {isOverLimit && '- Please reduce your response'}
           </p>
         </div>
 

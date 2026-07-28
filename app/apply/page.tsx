@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Link from "next/link"
 import { withBasePath } from "@/lib/paths"
 import { Header } from "@/components/shared/header"
+import { ABOUT_RESPONSE_CHARACTER_LIMIT, getRemainingAboutCharacters, isAboutResponseOverCharacterLimit } from "@/lib/application-limits"
 
 const preferredDates = [
   "May 15, 2026",
@@ -22,15 +23,10 @@ const preferredDates = [
   "August 15, 2026",
 ]
 
-function countWords(text: string): number {
-  return text.trim().split(/\s+/).filter(word => word.length > 0).length
-}
-
 export default function ApplyPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle")
   const [errorMessage, setErrorMessage] = useState("")
-  const [wordCount, setWordCount] = useState(0)
   
   const [formData, setFormData] = useState({
     fullName: "",
@@ -45,6 +41,8 @@ export default function ApplyPage() {
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const remainingCharacters = getRemainingAboutCharacters(formData.aboutAndContribution)
+  const isOverLimit = isAboutResponseOverCharacterLimit(formData.aboutAndContribution)
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -55,7 +53,7 @@ export default function ApplyPage() {
     if (!formData.contactInfo.trim()) newErrors.contactInfo = "WhatsApp or Telegram is required"
     if (!formData.preferredStartDate) newErrors.preferredStartDate = "Please select a preferred start date"
     if (!formData.aboutAndContribution.trim()) newErrors.aboutAndContribution = "This field is required"
-    else if (wordCount > 300) newErrors.aboutAndContribution = "Please keep your response under 300 words"
+    else if (isOverLimit) newErrors.aboutAndContribution = `Please keep your response under ${ABOUT_RESPONSE_CHARACTER_LIMIT} characters`
     if (!formData.socialLinks.trim()) newErrors.socialLinks = "Please provide at least one link"
     
     setErrors(newErrors)
@@ -107,7 +105,6 @@ export default function ApplyPage() {
 
   const handleAboutChange = (value: string) => {
     setFormData({ ...formData, aboutAndContribution: value })
-    setWordCount(countWords(value))
   }
 
   if (submitStatus === "success") {
@@ -250,7 +247,7 @@ export default function ApplyPage() {
                   We value curiosity, openness, and a willingness to participate in community life.
                 </p>
                 <p className="text-sm text-muted-foreground mb-3 font-medium">
-                  (Please keep your response under 300 words.)
+                  (Please keep your response under {ABOUT_RESPONSE_CHARACTER_LIMIT} characters.)
                 </p>
                 <Textarea
                   id="aboutAndContribution"
@@ -262,8 +259,8 @@ export default function ApplyPage() {
                 />
                 <div className="flex justify-between items-center">
                   {errors.aboutAndContribution && <p className="text-sm text-destructive">{errors.aboutAndContribution}</p>}
-                  <p className={`text-sm ml-auto ${wordCount > 300 ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-                    {wordCount}/300 words
+                  <p className={`text-sm ml-auto ${isOverLimit ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                    {remainingCharacters} characters remaining
                   </p>
                 </div>
               </div>
@@ -354,7 +351,7 @@ export default function ApplyPage() {
                 type="submit" 
                 size="lg" 
                 className="w-full md:w-auto px-8"
-                disabled={isSubmitting || wordCount > 300}
+                disabled={isSubmitting || isOverLimit}
               >
                 {isSubmitting ? (
                   "Submitting..."

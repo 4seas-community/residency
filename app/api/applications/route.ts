@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createApplication, type CreateApplicationInput } from "@/lib/applications/db"
+import { ABOUT_RESPONSE_CHARACTER_LIMIT, isAboutResponseOverCharacterLimit } from "@/lib/application-limits"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -14,10 +15,6 @@ function str(value: unknown): string {
 function optStr(value: unknown): string | null {
   const trimmed = typeof value === "string" ? value.trim() : ""
   return trimmed ? trimmed : null
-}
-
-function countWords(text: string): number {
-  return text.trim().split(/\s+/).filter(Boolean).length
 }
 
 export async function POST(request: Request) {
@@ -46,8 +43,11 @@ export async function POST(request: Request) {
   }
   if (!preferred_start_date) return NextResponse.json({ error: "Preferred start date is required" }, { status: 400 })
   if (!about_and_contribution) return NextResponse.json({ error: "Please tell us about yourself" }, { status: 400 })
-  if (countWords(about_and_contribution) > 300) {
-    return NextResponse.json({ error: "Please keep your response under 300 words" }, { status: 400 })
+  if (isAboutResponseOverCharacterLimit(about_and_contribution)) {
+    return NextResponse.json(
+      { error: `Please keep your response under ${ABOUT_RESPONSE_CHARACTER_LIMIT} characters` },
+      { status: 400 },
+    )
   }
   if (!social_links) return NextResponse.json({ error: "At least one social link is required" }, { status: 400 })
 

@@ -183,8 +183,8 @@ export default function HomePage() {
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
             {[
               { icon: Home, title: "Co-living", desc: "Live with the community in Chiang Mai" },
-              { icon: Users, title: "Coworking", desc: "Access to shared workspace and studios" },
-              { icon: Lightbulb, title: "Events", desc: "Workshop and discussion spaces" },
+              { icon: Users, title: "Co-working", desc: "Access to shared workspace and studios" },
+              { icon: Lightbulb, title: "Community Events", desc: "Workshop and discussion spaces" },
               { icon: Globe, title: "Network", desc: "Local and global community connections" }
             ].map((item, index) => (
               <motion.div

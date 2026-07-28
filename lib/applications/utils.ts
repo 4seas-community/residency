@@ -50,12 +50,15 @@ export function getCountByProgram(
   applications: Application[],
   program: ProgramFilter,
 ): number {
-  if (program === "all") return applications.length
-  if (program === "other") {
-    const definedPrograms = Object.keys(PROGRAMS)
-    return applications.filter((a) => !definedPrograms.includes(a.program_type)).length
+  return applications.filter((application) => matchesProgramFilter(application, program)).length
+}
+
+function matchesProgramFilter(application: Application, programFilter: ProgramFilter): boolean {
+  if (programFilter === "all") return true
+  if (programFilter === "other") {
+    return !Object.keys(PROGRAMS).includes(application.program_type)
   }
-  return applications.filter((a) => a.program_type === program).length
+  return application.program_type === programFilter
 }
 
 /** Count applications with a given status, scoped to the active program filter. */
@@ -65,8 +68,7 @@ export function getStatusCount(
   status: ApplicationStatus,
 ): number {
   return applications.filter(
-    (a) =>
-      (programFilter === "all" || a.program_type === programFilter) && a.status === status,
+    (application) => matchesProgramFilter(application, programFilter) && application.status === status,
   ).length
 }
 
@@ -76,13 +78,10 @@ export function getGroupCount(
   groupKey: keyof typeof STATUS_GROUPS,
 ): number {
   const statuses = STATUS_GROUPS[groupKey].statuses
-  return applications.filter((application) => {
-    const programMatches = programFilter === "all" ||
-      (programFilter === "other"
-        ? !Object.keys(PROGRAMS).includes(application.program_type)
-        : application.program_type === programFilter)
-    return programMatches && statuses.includes(application.status)
-  }).length
+  return applications.filter(
+    (application) =>
+      matchesProgramFilter(application, programFilter) && statuses.includes(application.status),
+  ).length
 }
 
 export interface ApplicationFilters {
@@ -93,20 +92,21 @@ export interface ApplicationFilters {
   searchQuery: string
 }
 
+function normalizeSearchText(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+}
+
 /** Apply the program, status, start-date range, and search filters to the application list. */
 export function filterApplications(
   applications: Application[],
   { programFilter, statusFilter, startDateFrom, startDateTo, searchQuery }: ApplicationFilters,
 ): Application[] {
   return applications.filter((app) => {
-    // Program filter ("other" = any program not defined in PROGRAMS)
-    if (programFilter !== "all") {
-      if (programFilter === "other") {
-        if (Object.keys(PROGRAMS).includes(app.program_type)) return false
-      } else if (app.program_type !== programFilter) {
-        return false
-      }
-    }
+    if (!matchesProgramFilter(app, programFilter)) return false
 
     // Status filter
     if (statusFilter !== "all") {
@@ -126,17 +126,29 @@ export function filterApplications(
       }
     }
 
-    // Free-text search across name, email, and contact fields
-    if (searchQuery !== "") {
-      const query = searchQuery.toLowerCase()
-      return (
-        app.full_name.toLowerCase().includes(query) ||
-        app.email.toLowerCase().includes(query) ||
-        !!app.contact_info?.toLowerCase().includes(query) ||
-        !!app.telegram?.toLowerCase().includes(query) ||
-        !!app.whatsapp?.toLowerCase().includes(query) ||
-        app.preferred_start_date.toLowerCase().includes(query)
-      )
+    const searchTerms = searchQuery
+      .trim()
+      .split(/\s+/)
+      .map(normalizeSearchText)
+      .filter(Boolean)
+
+    if (searchTerms.length > 0) {
+      const searchableText = [
+        app.full_name,
+        app.email,
+        app.contact_info,
+        app.telegram,
+        app.whatsapp,
+        app.linkedin_link,
+        app.github_link,
+        app.social_links,
+        app.organization,
+        app.role_title,
+      ]
+        .map(normalizeSearchText)
+        .join("|")
+
+      return searchTerms.every((term) => searchableText.includes(term))
     }
 
     return true
@@ -217,10 +229,10 @@ export function buildApplicationsCsv(
 
     return [
       app.id,
-      app.program_type || "crypto",
-      new Date(app.created_at).toLocaleString(),
-      `"${app.full_name.replace(/"/g, '""')}"`,
-      app.email,
+      app.program_type,
+      formatDateTimeGMT7(app.created_at),
+      csvCell(app.full_name),
+      csvCell(app.email),
       app.telegram || "",
       app.whatsapp || "",
       app.country || "",
@@ -241,15 +253,15 @@ export function buildApplicationsCsv(
       app.github_link || "",
       app.portfolio_url || "",
       csvCell(app.content_studio_plans),
-      app.needs_accommodation ? "Yes" : "No",
+      app.needs_accommodation == null ? "" : app.needs_accommodation ? "Yes" : "No",
       csvCell(app.needs_support),
       csvCell(app.previous_community_experience),
       csvCell(app.anything_else),
       `"${programSpecific.replace(/"/g, '""')}"`,
       app.status,
       app.reviewed_by || "",
-      app.reviewed_at ? new Date(app.reviewed_at).toLocaleString() : "",
-      `"${commentText.replace(/"/g, '""')}"`,
+      app.reviewed_at ? formatDateTimeGMT7(app.reviewed_at) : "",
+      csvCell(commentText),
     ].join(",")
   })
 
@@ -260,7 +272,9 @@ export function buildApplicationsCsv(
 export function downloadCsv(csvContent: string, fileName: string): void {
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
   const link = document.createElement("a")
-  link.href = URL.createObjectURL(blob)
+  const objectUrl = URL.createObjectURL(blob)
+  link.href = objectUrl
   link.download = fileName
   link.click()
+  URL.revokeObjectURL(objectUrl)
 }

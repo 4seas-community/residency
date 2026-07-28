@@ -3,13 +3,26 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { Check, Loader2 } from "lucide-react"
+import { Check, ChevronsUpDown, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 import { withBasePath } from "@/lib/paths"
-import { ABOUT_RESPONSE_CHARACTER_LIMIT, getRemainingAboutCharacters, isAboutResponseOverCharacterLimit } from "@/lib/application-limits"
+import {
+  APPLICATION_RESPONSE_CHARACTER_LIMIT,
+  getRemainingCharacters,
+  isResponseOverCharacterLimit,
+} from "@/lib/application-limits"
 
 export type ProgramType = 'crypto' | 'art' | 'longevity'
 
@@ -25,7 +38,9 @@ interface FormData {
   telegram_or_whatsapp: string
   nationality: string
   about_you: string
-  proposed_contribution: string
+  contribution_plan: string
+  contribution_past: string
+  contribution_commitment: string
   social_link: string
   linkedin: string
   github: string
@@ -33,58 +48,111 @@ interface FormData {
   preferred_start_date: string
 }
 
-const initialFormData: FormData = {
+const INITIAL_FORM_DATA: FormData = {
   name: '',
   email: '',
   telegram_or_whatsapp: '',
   nationality: '',
   about_you: '',
-  proposed_contribution: '',
+  contribution_plan: '',
+  contribution_past: '',
+  contribution_commitment: '',
   social_link: '',
   linkedin: '',
   github: '',
   content_studio: '',
-  preferred_start_date: ''
+  preferred_start_date: '',
 }
 
-// Generate available start dates: 1st and 15th of each month from June 15, 2025 to August 15, 2025
-const generateStartDates = () => {
-  const dates: { value: string; label: string }[] = []
-  const startDates = [
-    { year: 2026, month: 6, day: 15 }, // July 15
-    { year: 2026, month: 7, day: 1 },  // August 1
-    { year: 2026, month: 7, day: 15 }, // August 15
-    { year: 2026, month: 8, day: 1 },  // September 1
-    { year: 2026, month: 8, day: 15 }, // September 15
-  ]
-  
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-  
-  startDates.forEach(({ year, month, day }) => {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    const label = `${monthNames[month]} ${day}, ${year}`
-    dates.push({ value: dateStr, label })
-  })
-  
-  return dates
+const COUNTRIES_AND_REGIONS = [
+  "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan",
+  "Bahrain", "Bangladesh", "Belarus", "Belgium", "Bolivia", "Bosnia & Herzegovina", "Brazil", "Bulgaria", "Cambodia",
+  "Cameroon", "Canada", "Chile", "China", "Colombia", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czech Republic",
+  "Denmark", "Ecuador", "Egypt", "Estonia", "Ethiopia", "Finland", "France", "Georgia", "Germany", "Ghana", "Greece",
+  "Guatemala", "Honduras", "Hong Kong SAR", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland",
+  "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kosovo", "Kuwait", "Latvia", "Lebanon",
+  "Lithuania", "Luxembourg", "Macau SAR", "Malaysia", "Malta", "Mexico", "Moldova", "Morocco", "Myanmar", "Nepal",
+  "Netherlands", "New Zealand", "Nigeria", "North Macedonia", "Norway", "Oman", "Pakistan", "Palestine", "Panama",
+  "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Saudi Arabia", "Senegal",
+  "Serbia", "Singapore", "Slovakia", "Slovenia", "South Africa", "South Korea", "Spain", "Sri Lanka", "Sweden",
+  "Switzerland", "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Tunisia", "Turkey", "Uganda", "Ukraine",
+  "United Arab Emirates", "United Kingdom", "United States", "Uruguay", "Uzbekistan", "Venezuela", "Vietnam",
+  "Yemen", "Zambia", "Zimbabwe",
+]
+
+const START_DATE_OPTIONS = [
+  { value: "2026-07-15", label: "July 15, 2026" },
+  { value: "2026-08-01", label: "August 1, 2026" },
+  { value: "2026-08-15", label: "August 15, 2026" },
+  { value: "2026-09-01", label: "September 1, 2026" },
+  { value: "2026-09-15", label: "September 15, 2026" },
+  { value: "2026-10-01", label: "October 1, 2026" },
+]
+
+const LONGEVITY_APPLICATION_STEPS = [
+  "Submit the application form, including your background and planned contribution",
+  "Join an online interview",
+  "Receive the selection result",
+]
+
+const SOCIAL_LINK_LABELS: Record<ProgramType, string> = {
+  art: "Portfolio or Personal Website",
+  longevity: "Personal Website, Research Profile, or Social Media",
+  crypto: "Your Social Media, Personal Website or Publications",
 }
 
-const startDateOptions = generateStartDates()
+const SECONDARY_LINK_CONFIG: Record<ProgramType, { label: string; placeholder: string; hint?: string }> = {
+  art: { label: "Social Media", placeholder: "Instagram, X, Behance, etc." },
+  longevity: {
+    label: "Additional Information",
+    placeholder: "Additional link or brief note...",
+    hint: "Share any additional link or detail that may help us understand your work and interests.",
+  },
+  crypto: { label: "GitHub", placeholder: "https://github.com/..." },
+}
+
+function CharacterLimitedTextarea({
+  value,
+  onChange,
+  placeholder,
+  rows = 4,
+}: {
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  rows?: number
+}) {
+  const remainingCharacters = getRemainingCharacters(value)
+  const isOverLimit = isResponseOverCharacterLimit(value)
+
+  return (
+    <>
+      <Textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        className={isOverLimit ? "border-red-500 focus-visible:ring-red-500" : ""}
+      />
+      <p className={`text-xs ${isOverLimit ? "font-medium text-red-500" : "text-muted-foreground"}`}>
+        {remainingCharacters} characters remaining{isOverLimit && " - Please reduce your response"}
+      </p>
+    </>
+  )
+}
 
 export default function ApplicationForm({ programType, programTitle, programColor }: ApplicationFormProps) {
   const router = useRouter()
-  const [formData, setFormData] = useState<FormData>(initialFormData)
+  const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [countryOpen, setCountryOpen] = useState(false)
 
-  const handleInputChange = (field: keyof FormData, value: string) => {
+  const handleFieldChange = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     setError(null)
   }
-
-  const remainingCharacters = getRemainingAboutCharacters(formData.about_you)
-  const isOverLimit = isAboutResponseOverCharacterLimit(formData.about_you)
 
   const validateForm = () => {
     if (!formData.name.trim()) {
@@ -107,13 +175,24 @@ export default function ApplicationForm({ programType, programTitle, programColo
       setError('Please tell us about yourself')
       return false
     }
-    if (isAboutResponseOverCharacterLimit(formData.about_you)) {
-      setError(`Please keep your response under ${ABOUT_RESPONSE_CHARACTER_LIMIT} characters`)
+    if (isResponseOverCharacterLimit(formData.about_you)) {
+      setError(`Please keep your response under ${APPLICATION_RESPONSE_CHARACTER_LIMIT} characters`)
       return false
     }
-    if (!formData.proposed_contribution.trim()) {
-      setError('Please tell us what you plan to contribute')
-      return false
+    const contributionFields = [
+      ["Please describe how you plan to contribute during your stay", formData.contribution_plan],
+      ["Please share a past contribution experience", formData.contribution_past],
+      ["Please describe your commitment during your stay", formData.contribution_commitment],
+    ] as const
+    for (const [message, value] of contributionFields) {
+      if (!value.trim()) {
+        setError(message)
+        return false
+      }
+      if (isResponseOverCharacterLimit(value)) {
+        setError(`Please keep each response under ${APPLICATION_RESPONSE_CHARACTER_LIMIT} characters`)
+        return false
+      }
     }
     if (!formData.social_link.trim()) {
       setError('Please provide at least one social link')
@@ -152,7 +231,9 @@ export default function ApplicationForm({ programType, programTitle, programColo
           needs_support: formData.content_studio || null,
           status: 'new',
           about_and_contribution: formData.about_you,
-          proposed_contribution: formData.proposed_contribution,
+          contribution_plan: formData.contribution_plan,
+          contribution_past: formData.contribution_past,
+          contribution_commitment: formData.contribution_commitment,
         }),
       })
 
@@ -231,86 +312,140 @@ export default function ApplicationForm({ programType, programTitle, programColo
     )
   }
 
+  const secondaryLink = SECONDARY_LINK_CONFIG[programType]
+
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-8">
       {programType === 'longevity' && (
         <div className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="border-b border-border px-6 py-4"><h2 className="text-base font-semibold">Process &amp; Duration</h2></div>
-          <div className="space-y-6 p-6">
-            <div><h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Application Process</h3><div className="grid gap-3 sm:grid-cols-3">{[
-              ['1', 'Apply', 'Tell us about yourself and what you hope to explore.'],
-              ['2', 'Review', 'Our team reviews applications on a rolling basis.'],
-              ['3', 'Confirm', 'Selected residents coordinate dates and practical details.'],
-            ].map(([step, title, description]) => <div key={step} className="rounded-lg bg-muted/50 p-4"><span className="text-xs font-semibold text-emerald-600">STEP {step}</span><p className="mt-1 font-medium">{title}</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p></div>)}</div></div>
-            <div><h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Residency Duration</h3><p className="text-sm leading-relaxed text-muted-foreground">Residencies generally run for two weeks to one month. Longer stays can be discussed based on the project and community contribution.</p></div>
+          <div className="border-b border-border px-6 py-4" style={{ backgroundColor: "#10b98115" }}>
+            <h2 className="text-base font-semibold text-foreground">Process &amp; Duration</h2>
+          </div>
+          <div className="space-y-6 px-6 py-5">
+            <div>
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Application Process</h3>
+              <ol className="space-y-2">
+                {LONGEVITY_APPLICATION_STEPS.map((step, index) => (
+                  <li key={step} className="flex items-start gap-3">
+                    <span
+                      className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                      style={{ backgroundColor: "#10b981" }}
+                    >
+                      {index + 1}
+                    </span>
+                    <span className="text-sm leading-relaxed text-foreground">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div>
+              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Residency Duration</h3>
+              <p className="text-sm text-foreground">At least one month</p>
+            </div>
           </div>
         </div>
       )}
-      {/* Personal Information Section */}
+
       <div className="space-y-6">
         <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">PERSONAL INFORMATION</h2>
-        
+
         <div className="space-y-2">
-          <Label>Name <span className="text-red-500">*</span></Label>
+          <Label htmlFor="application-name">Name <span className="text-red-500">*</span></Label>
           <Input
+            id="application-name"
             value={formData.name}
-            onChange={(e) => handleInputChange('name', e.target.value)}
+            onChange={(event) => handleFieldChange('name', event.target.value)}
             placeholder="Your name"
           />
         </div>
 
         <div className="space-y-2">
-          <Label>Email <span className="text-red-500">*</span></Label>
+          <Label htmlFor="application-email">Email <span className="text-red-500">*</span></Label>
           <Input
+            id="application-email"
             type="email"
             value={formData.email}
-            onChange={(e) => handleInputChange('email', e.target.value)}
+            onChange={(event) => handleFieldChange('email', event.target.value)}
             placeholder="your@email.com"
           />
         </div>
 
         <div className="space-y-2">
-          <Label>WhatsApp or Telegram <span className="text-red-500">*</span></Label>
+          <Label htmlFor="application-contact">WhatsApp or Telegram <span className="text-red-500">*</span></Label>
           <Input
+            id="application-contact"
             value={formData.telegram_or_whatsapp}
-            onChange={(e) => handleInputChange('telegram_or_whatsapp', e.target.value)}
+            onChange={(event) => handleFieldChange('telegram_or_whatsapp', event.target.value)}
             placeholder="@username or +1234567890"
           />
         </div>
       </div>
 
-      {/* Visit Details Section */}
       <div className="space-y-6">
         <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">VISIT DETAILS</h2>
-        
+
         <div className="space-y-2">
-          <Label>Preferred Start Date <span className="text-red-500">*</span></Label>
+          <Label htmlFor="application-start-date">Preferred Start Date <span className="text-red-500">*</span></Label>
           <select
+            id="application-start-date"
             value={formData.preferred_start_date}
-            onChange={(e) => handleInputChange('preferred_start_date', e.target.value)}
+            onChange={(event) => handleFieldChange('preferred_start_date', event.target.value)}
             className="w-full h-10 px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground"
           >
             <option value="">Select a start date</option>
-            {startDateOptions.map(({ value, label }) => (
+            {START_DATE_OPTIONS.map(({ value, label }) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
         </div>
 
         <div className="space-y-2">
-          <Label>Country <span className="text-red-500">*</span></Label>
-          <Input
-            value={formData.nationality}
-            onChange={(e) => handleInputChange('nationality', e.target.value)}
-            placeholder="Your country"
-          />
+          <Label>Country &amp; Region <span className="text-red-500">*</span></Label>
+          <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                role="combobox"
+                aria-expanded={countryOpen}
+                className="w-full justify-between font-normal"
+              >
+                <span className={formData.nationality ? "text-foreground" : "text-muted-foreground"}>
+                  {formData.nationality || "Select a country or region..."}
+                </span>
+                <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search country or region..." />
+                <CommandList>
+                  <CommandEmpty>No result found.</CommandEmpty>
+                  <CommandGroup>
+                    {COUNTRIES_AND_REGIONS.map((country) => (
+                      <CommandItem
+                        key={country}
+                        value={country}
+                        onSelect={(value) => {
+                          handleFieldChange('nationality', value === formData.nationality ? '' : value)
+                          setCountryOpen(false)
+                        }}
+                      >
+                        <Check className={`mr-2 size-4 ${formData.nationality === country ? "opacity-100" : "opacity-0"}`} />
+                        {country}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
-      {/* About You Section */}
       <div className="space-y-6">
         <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">ABOUT YOU</h2>
-        
+
         <div className="space-y-2">
           <Label>Tell us about yourself <span className="text-red-500">*</span></Label>
           <p className="text-sm text-muted-foreground">
@@ -320,48 +455,67 @@ export default function ApplicationForm({ programType, programTitle, programColo
             We value curiosity, openness, and a willingness to participate in community life.
           </p>
           <p className="text-sm text-muted-foreground italic">
-            (Please keep your response under {ABOUT_RESPONSE_CHARACTER_LIMIT} characters.)
+            (Please keep your response under {APPLICATION_RESPONSE_CHARACTER_LIMIT} characters.)
           </p>
-          <Textarea
+          <CharacterLimitedTextarea
             value={formData.about_you}
-            onChange={(e) => handleInputChange('about_you', e.target.value)}
+            onChange={(value) => handleFieldChange('about_you', value)}
             placeholder="Tell us about yourself..."
             rows={6}
-            className={isOverLimit ? 'border-red-500 focus-visible:ring-red-500' : ''}
-          />
-          <p className={`text-xs ${isOverLimit ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}>
-            {remainingCharacters} characters remaining {isOverLimit && '- Please reduce your response'}
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <Label>What do you plan to contribute? <span className="text-red-500">*</span></Label>
-          <p className="text-sm text-muted-foreground">
-            Tell us how you imagine contributing to the community during your stay. If you don&apos;t have anything specific in mind yet, please describe the part you think you could contribute.
-          </p>
-          <Textarea
-            value={formData.proposed_contribution}
-            onChange={(e) => handleInputChange('proposed_contribution', e.target.value)}
-            placeholder="Share your planned contribution, or the part you think you could contribute..."
-            rows={5}
           />
         </div>
       </div>
 
-      {/* Social Links Section */}
+      <div className="space-y-6">
+        <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">CONTRIBUTION</h2>
+        <div className="space-y-2">
+          <Label>How do you plan to contribute during your stay? <span className="text-red-500">*</span></Label>
+          <p className="text-sm text-muted-foreground">
+            Describe one or two concrete ways you hope to contribute to the 4Seas community during your residency.
+          </p>
+          <CharacterLimitedTextarea
+            value={formData.contribution_plan}
+            onChange={(value) => handleFieldChange('contribution_plan', value)}
+            placeholder="Describe your planned contribution..."
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Tell us about a time you contributed to a community. <span className="text-red-500">*</span></Label>
+          <p className="text-sm text-muted-foreground">
+            Briefly describe what you did and the impact it had.
+          </p>
+          <CharacterLimitedTextarea
+            value={formData.contribution_past}
+            onChange={(value) => handleFieldChange('contribution_past', value)}
+            placeholder="Share a past contribution experience..."
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>What commitment are you willing to make during your stay? <span className="text-red-500">*</span></Label>
+          <p className="text-sm text-muted-foreground">
+            Tell us what level of participation the community can realistically expect from you.
+          </p>
+          <CharacterLimitedTextarea
+            value={formData.contribution_commitment}
+            onChange={(value) => handleFieldChange('contribution_commitment', value)}
+            placeholder="Describe your expected level of participation..."
+          />
+        </div>
+      </div>
+
       <div className="space-y-6">
         <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">SOCIAL LINKS</h2>
-        
+
         <div className="space-y-2">
-          <Label>
-            {programType === 'art' ? 'Portfolio or Personal Website' : programType === 'longevity' ? 'Your Website, Research, Social Media or Publications' : 'Your Social Media, Personal Website or Publications'} <span className="text-red-500">*</span>
-          </Label>
+          <Label>{SOCIAL_LINK_LABELS[programType]} <span className="text-red-500">*</span></Label>
           <p className="text-sm text-muted-foreground">
             At least provide one link, so that we can know a bit more from you.
           </p>
           <Input
             value={formData.social_link}
-            onChange={(e) => handleInputChange('social_link', e.target.value)}
+            onChange={(event) => handleFieldChange('social_link', event.target.value)}
             placeholder="https://..."
           />
         </div>
@@ -370,26 +524,25 @@ export default function ApplicationForm({ programType, programTitle, programColo
           <Label>LinkedIn</Label>
           <Input
             value={formData.linkedin}
-            onChange={(e) => handleInputChange('linkedin', e.target.value)}
+            onChange={(event) => handleFieldChange('linkedin', event.target.value)}
             placeholder="https://linkedin.com/in/..."
           />
         </div>
 
         <div className="space-y-2">
-          <Label>{programType === 'art' ? 'Social Media' : programType === 'longevity' ? 'Additional Information' : 'GitHub'}</Label>
-          {programType === 'longevity' && <p className="text-sm text-muted-foreground">Optional additional link or brief note that helps us understand your work.</p>}
+          <Label>{secondaryLink.label}</Label>
+          {secondaryLink.hint && <p className="text-sm text-muted-foreground">{secondaryLink.hint}</p>}
           <Input
             value={formData.github}
-            onChange={(e) => handleInputChange('github', e.target.value)}
-            placeholder={programType === 'art' ? 'Instagram, X, Behance, etc.' : programType === 'longevity' ? 'Additional link or brief note...' : 'https://github.com/...'}
+            onChange={(event) => handleFieldChange('github', event.target.value)}
+            placeholder={secondaryLink.placeholder}
           />
         </div>
       </div>
 
-      {/* Content Studio Section */}
       <div className="space-y-6">
         <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">CONTENT STUDIO</h2>
-        
+
         <div className="space-y-2">
           <Label>Do you have any plans to use the Content Studio during your residency?</Label>
           <p className="text-sm text-muted-foreground">
@@ -397,7 +550,7 @@ export default function ApplicationForm({ programType, programTitle, programColo
           </p>
           <Textarea
             value={formData.content_studio}
-            onChange={(e) => handleInputChange('content_studio', e.target.value)}
+            onChange={(event) => handleFieldChange('content_studio', event.target.value)}
             placeholder="Your content creation plans (optional)"
             rows={3}
           />

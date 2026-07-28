@@ -20,7 +20,7 @@ test("hub status badges use the same active state as program detail pages", asyn
 
   assert.match(hubSource, /program\.isActive \? 'Now Open' : 'Coming Soon'/)
   assert.doesNotMatch(hubSource, /program\.cohortStartDate === 'Coming Soon'/)
-  assert.match(programsSource, /longevity: \{[\s\S]*?isActive: true,[\s\S]*?cohortStartDate: 'Coming Soon'/)
+  assert.match(programsSource, /longevity: \{[\s\S]*?isActive: true,[\s\S]*?cohortStartDate: 'Rolling admissions'/)
 })
 
 test("every track ships a page and an apply page wired to the shared form", async () => {
@@ -56,4 +56,5 @@ test("application form submits the selected program", async () => {
 
   assert.match(formSource, /programType: ProgramType/)
   assert.match(formSource, /program_type: programType/)
+  assert.match(formSource, /2026-10-01/)
 })

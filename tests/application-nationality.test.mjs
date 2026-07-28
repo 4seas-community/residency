@@ -2,24 +2,27 @@ import { readFile } from "node:fs/promises"
 import test from "node:test"
 import assert from "node:assert/strict"
 
-test("application form captures nationality as a required field", async () => {
+test("application form captures country and region as a required searchable selection", async () => {
   const formSource = await readFile(new URL("../components/residency/application-form.tsx", import.meta.url), "utf8")
 
   assert.match(formSource, /nationality: string/)
   assert.match(formSource, /nationality: ''/)
   assert.match(formSource, /if \(!formData\.nationality\.trim\(\)\)/)
-  assert.match(formSource, /value=\{formData\.nationality\}/)
-  assert.match(formSource, /handleInputChange\('nationality', e\.target\.value\)/)
+  assert.match(formSource, /Country &amp; Region/)
+  assert.match(formSource, /COUNTRIES_AND_REGIONS\.map/)
+  assert.match(formSource, /handleFieldChange\('nationality', value === formData\.nationality \? '' : value\)/)
 })
 
-test("nationality flows through the API into the database", async () => {
+test("selected country flows through the API into the database", async () => {
+  const formSource = await readFile(new URL("../components/residency/application-form.tsx", import.meta.url), "utf8")
   const routeSource = await readFile(new URL("../app/api/applications/route.ts", import.meta.url), "utf8")
   const dbSource = await readFile(new URL("../lib/applications/db.ts", import.meta.url), "utf8")
 
-  assert.match(routeSource, /nationality: optStr\(data\.nationality\)/)
-  assert.match(dbSource, /add column if not exists nationality text/)
-  assert.match(dbSource, /nationality\?: string \| null/)
-  assert.match(dbSource, /input\.nationality \?\? null/)
+  assert.match(formSource, /country: formData\.nationality \|\| null/)
+  assert.match(routeSource, /country: optStr\(data\.country\)/)
+  assert.match(dbSource, /add column if not exists country text/)
+  assert.match(dbSource, /country\?: string \| null/)
+  assert.match(dbSource, /input\.country \?\? null/)
 })
 
 test("admin API still returns nationality for every application", async () => {

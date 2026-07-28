@@ -204,7 +204,7 @@ export const PROGRAMS: Record<ProgramType, ProgramConfig> = {
       'Medical professionals',
       'Wellness innovators'
     ],
-    duration: ['2 weeks', '1 month', '3 months'],
+    duration: ['1 month', '3 months'],
     highlights: [
       {
         title: 'Research Focus',
@@ -244,7 +244,7 @@ export const PROGRAMS: Record<ProgramType, ProgramConfig> = {
     ],
     isActive: true,
     isHidden: false, // Now visible on main hub
-    cohortStartDate: 'Coming Soon'
+    cohortStartDate: 'Rolling admissions'
   }
 }
 

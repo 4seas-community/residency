@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { createApplication, type CreateApplicationInput } from "@/lib/applications/db"
-import { ABOUT_RESPONSE_CHARACTER_LIMIT, isAboutResponseOverCharacterLimit } from "@/lib/application-limits"
+import {
+  APPLICATION_RESPONSE_CHARACTER_LIMIT,
+  isResponseOverCharacterLimit,
+} from "@/lib/application-limits"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -31,6 +34,9 @@ export async function POST(request: Request) {
   const email = str(data.email)
   const preferred_start_date = str(data.preferred_start_date)
   const about_and_contribution = str(data.about_and_contribution)
+  const contribution_plan = str(data.contribution_plan)
+  const contribution_past = str(data.contribution_past)
+  const contribution_commitment = str(data.contribution_commitment)
   const social_links = str(data.social_links)
   const contact_info = optStr(data.contact_info)
   const telegram = optStr(data.telegram)
@@ -43,11 +49,30 @@ export async function POST(request: Request) {
   }
   if (!preferred_start_date) return NextResponse.json({ error: "Preferred start date is required" }, { status: 400 })
   if (!about_and_contribution) return NextResponse.json({ error: "Please tell us about yourself" }, { status: 400 })
-  if (isAboutResponseOverCharacterLimit(about_and_contribution)) {
+  if (isResponseOverCharacterLimit(about_and_contribution)) {
     return NextResponse.json(
-      { error: `Please keep your response under ${ABOUT_RESPONSE_CHARACTER_LIMIT} characters` },
+      { error: `Please keep your response under ${APPLICATION_RESPONSE_CHARACTER_LIMIT} characters` },
       { status: 400 },
     )
+  }
+  const structuredContributionFields = [
+    ["Contribution during your stay", contribution_plan],
+    ["Past community contribution", contribution_past],
+    ["Commitment during your stay", contribution_commitment],
+  ] as const
+  const usesStructuredContributions = structuredContributionFields.some(([, value]) => value)
+  if (usesStructuredContributions) {
+    for (const [label, value] of structuredContributionFields) {
+      if (!value) {
+        return NextResponse.json({ error: `${label} is required` }, { status: 400 })
+      }
+      if (isResponseOverCharacterLimit(value)) {
+        return NextResponse.json(
+          { error: `${label} must be under ${APPLICATION_RESPONSE_CHARACTER_LIMIT} characters` },
+          { status: 400 },
+        )
+      }
+    }
   }
   if (!social_links) return NextResponse.json({ error: "At least one social link is required" }, { status: 400 })
 
@@ -73,15 +98,17 @@ export async function POST(request: Request) {
     bio: optStr(data.bio),
     why_4seas: optStr(data.why_4seas),
     why_this_track: optStr(data.why_this_track),
-    proposed_contribution: optStr(data.proposed_contribution),
+    proposed_contribution: usesStructuredContributions ? contribution_plan : optStr(data.proposed_contribution),
     social_links,
     linkedin_link: optStr(data.linkedin_link),
     github_link: optStr(data.github_link),
     portfolio_url: optStr(data.portfolio_url),
     content_studio_plans: optStr(data.content_studio_plans),
     needs_support: optStr(data.needs_support),
-    previous_community_experience: optStr(data.previous_community_experience),
-    anything_else: optStr(data.anything_else),
+    previous_community_experience: usesStructuredContributions
+      ? contribution_past
+      : optStr(data.previous_community_experience),
+    anything_else: usesStructuredContributions ? contribution_commitment : optStr(data.anything_else),
   }
 
   try {

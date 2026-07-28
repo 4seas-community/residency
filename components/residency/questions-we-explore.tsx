@@ -35,7 +35,7 @@ const questions = {
 export function QuestionsWeExplore({ programType = 'crypto' }: QuestionsWeExploreProps) {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: "-100px" })
-  const items = questions[programType]
+  const items = questions[programType] ?? questions.crypto
 
   return (
     <section ref={ref} className="py-12 px-4 md:px-8">

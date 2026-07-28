@@ -84,7 +84,7 @@ const contributions = {
 export function WhatResidentsBring({ programType = 'crypto' }: WhatResidentsBringProps) {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: "-100px" })
-  const items = contributions[programType]
+  const items = contributions[programType] ?? contributions.crypto
   const accentColor = programType === 'art' ? '#e11d48' : programType === 'longevity' ? '#10b981' : undefined
 
   if (programType === 'longevity') {

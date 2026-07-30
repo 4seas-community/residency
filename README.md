@@ -1,52 +1,13 @@
 # 4Seas Residency
 
-```mermaid
-flowchart LR
-  U["Applicant"] --> W["4seas.xyz/residency<br/>Next.js on 4Seas VPS"]
-  A["Admin"] --> W
-  W <--> D["Supabase PostgreSQL<br/>only production business database"]
-  W -->|SMTP| M["4Seas Stalwart Mail<br/>residency@4seas.xyz"]
-  M --> U
-  U -->|Email reply| M
-  T["VPS timer"] -->|IMAP sync| M
-  T --> W
-```
+当前生产环境布局与数据所有权：[ARCHITECTURE.md](./ARCHITECTURE.md)。
 
-## Runtime
+清迈 4Seas 驻留项目（加密 / 艺术 / 长寿）的营销网站、申请漏斗和管理员审核面板。
 
-- The application runs on the 4Seas VPS at `/residency`.
-- Supabase PostgreSQL is the only production business database.
-- VPS-local PostgreSQL is retained for recovery only and receives no production writes.
+产品规格：[docs/PRD.md](./docs/PRD.md) · 技术设计：[docs/TECH-DESIGN.md](./docs/TECH-DESIGN.md) · 维护与部署：[docs/MAINTENANCE-AND-DEPLOYMENT.md](./docs/MAINTENANCE-AND-DEPLOYMENT.md)
 
-## Data
+## 技术栈
 
-- `applications`: applications and review status.
-- `review_notes`: internal reviewer notes.
-- `email_log`: outbound email attempts and provider message identifiers.
-- `inbound_emails`: applicant replies imported from the mailbox.
-- Replies are matched by `In-Reply-To`/`References`; sender matching is a fallback.
-- Ambiguous messages remain unmatched and are never attached automatically.
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Supabase PostgreSQL · Stalwart SMTP/IMAP · 4Seas VPS
 
-## Email
-
-- Outbound email uses authenticated SMTP through 4Seas Stalwart.
-- The sender and reply mailbox is `residency@4seas.xyz`.
-- A VPS timer imports replies over IMAP every five minutes.
-- Matched replies appear in the related application record in Admin.
-
-## Development
-
-```bash
-pnpm install
-pnpm typecheck
-pnpm build
-```
-
-- Run `supabase/migrations/` in numeric order.
-- Copy `.env.example` to a private environment file and provide the required values.
-- Production secrets live only on the VPS.
-
-## Repository safety
-
-- Never commit passwords, connection strings, API keys, session secrets, mailbox credentials, server addresses, backups, applicant data, or production environment files.
-- `.env.example` contains variable names and non-secret examples only.
+**架构一言以蔽之：** 浏览器绝不直接接触数据库或邮箱；VPS 应用直接与 Supabase PostgreSQL 和 4Seas 邮件服务器通信。

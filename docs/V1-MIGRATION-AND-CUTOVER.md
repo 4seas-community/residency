@@ -1,6 +1,8 @@
 # v1 → v2 迁移与上线
 
-替换线上 `4seas.xyz/residency` 的完整记录。截至 2026-07-28，代码改动和数据迁移已完成并验证，**流量尚未切换**。
+> **文档状态：已完成的历史迁移记录。** 生产应用现已运行在 4Seas VPS，并以 Supabase PostgreSQL 为唯一业务数据库。本文保留当时的 Vercel 切换计划作为审计记录，不可作为当前操作手册；现行流程见 [`MAINTENANCE-AND-DEPLOYMENT.md`](./MAINTENANCE-AND-DEPLOYMENT.md)。
+
+替换线上 `4seas.xyz/residency` 的历史记录。截至 2026-07-28，代码改动和数据迁移已完成并验证；后续已切换到当前自托管生产架构。
 
 ## 两套系统
 

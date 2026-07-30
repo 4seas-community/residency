@@ -31,6 +31,20 @@ function ident(value: string): string {
   return `"${value}"`
 }
 
+function serializeDatabaseValue(value: unknown): unknown {
+  if (value instanceof Date) return value.toISOString()
+  if (Array.isArray(value)) return value.map(serializeDatabaseValue)
+  if (value && typeof value === 'object') {
+    const prototype = Object.getPrototypeOf(value)
+    if (prototype === Object.prototype || prototype === null) {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, nestedValue]) => [key, serializeDatabaseValue(nestedValue)]),
+      )
+    }
+  }
+  return value
+}
+
 class QueryBuilder implements PromiseLike<DbResult> {
   private operation: Operation = 'select'
   private columns = '*'
@@ -156,7 +170,7 @@ class QueryBuilder implements PromiseLike<DbResult> {
 
       const result = await connection().query(sql, values)
       if (this.countOnly) return { data: null, error: null, count: result.rows[0]?.count ?? 0 }
-      return { data: result.rows, error: null }
+      return { data: serializeDatabaseValue(result.rows), error: null }
     } catch (error) {
       return { data: null, error: error instanceof Error ? error : new Error(String(error)) }
     }

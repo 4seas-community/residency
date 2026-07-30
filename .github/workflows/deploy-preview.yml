@@ -1,0 +1,80 @@
+name: Deploy preview
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: residency-preview
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test-build-deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: preview
+    env:
+      NEXT_PUBLIC_BASE_PATH: /residency
+
+    steps:
+      - name: Check out mirrored source
+        uses: actions/checkout@v4
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run type checks
+        run: pnpm typecheck
+
+      - name: Build standalone application
+        run: pnpm build
+
+      - name: Assemble release
+        run: |
+          set -euo pipefail
+          mkdir -p release/.next
+          cp -a .next/standalone/. release/
+          cp -a .next/static release/.next/static
+          cp -a public release/public
+          printf '%s\n' "${GITHUB_SHA}" > release/REVISION
+          tar -C release -czf residency-preview.tar.gz .
+
+      - name: Upload and activate release
+        env:
+          PREVIEW_DEPLOY_TOKEN: ${{ secrets.PREVIEW_DEPLOY_TOKEN }}
+          PREVIEW_URL: ${{ secrets.PREVIEW_URL }}
+        run: |
+          set -euo pipefail
+          curl --http1.1 --fail --silent --show-error \
+            --max-time 300 \
+            --retry 3 --retry-all-errors \
+            -H "Authorization: Bearer ${PREVIEW_DEPLOY_TOKEN}" \
+            -H "X-Revision: ${GITHUB_SHA}" \
+            -H "Content-Type: application/gzip" \
+            --data-binary @residency-preview.tar.gz \
+            "${PREVIEW_URL}/__deploy/residency"
+
+      - name: Verify public preview
+        env:
+          PREVIEW_URL: ${{ secrets.PREVIEW_URL }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 8 --retry-delay 3 \
+            "${PREVIEW_URL}/residency" >/dev/null
+          curl --fail --silent --show-error --retry 4 --retry-delay 2 \
+            "${PREVIEW_URL}/residency/admin" >/dev/null
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            "${PREVIEW_URL}/residency/api/admin/session")" = "401"

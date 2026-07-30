@@ -1,280 +1,184 @@
-import { PROGRAMS, STATUS_GROUPS } from "@/lib/programs"
-import type { ProgramType, ApplicationStatus } from "@/lib/programs"
-import type {
-  Application,
-  AdminComment,
-  ColumnSort,
-  ProgramFilter,
-  SortType,
-} from "@/lib/applications/types"
+// Pure list helpers for the admin dashboard (ported from the reference repo,
+// trimmed to the v2 field set — no legacy status mapping).
+
+import { STATUS_CONFIG } from '@/lib/types'
+import type { AdminTrackId, Application, ApplicationStatus } from '@/lib/types'
+
+export const ADMIN_TRACK_LABELS: Record<AdminTrackId, string> = {
+  crypto: 'Crypto',
+  art: 'Art',
+  longevity: 'Longevity',
+  other: 'Other',
+}
+
+/**
+ * Status filter selected via the summary cards: 'all', a raw status (raw
+ * 'interview' doubles as the INTERVIEW group), the NEW group (submitted +
+ * reviewing), or a derived sub-stage of interview/accepted/rejected.
+ */
+export type StatusFilter =
+  | 'all'
+  | ApplicationStatus
+  | 'new_group'
+  | 'accepted_early'
+  | 'accepted_after'
+  | 'rejected_before'
+  | 'rejected_after'
+
+export type SortColumn = 'name' | 'track' | 'submitted' | 'confirmed' | 'country' | 'status'
+export type SortDirection = 'asc' | 'desc'
 
 /** Prefix a bare URL with https:// so it is safe to use in an anchor href. */
 export function normalizeUrl(url: string): string {
-  return url.startsWith("http") ? url : `https://${url}`
+  return url.startsWith('http') ? url : `https://${url}`
+}
+
+/**
+ * Default Accept/Reject variant: "after interview" iff the row is currently in
+ * interview status. Interview times are coordinated off-platform, so status is
+ * the only signal.
+ */
+export function defaultDecidedAfterInterview(app: Application): boolean {
+  return app.status === 'interview'
+}
+
+/** Sub-label for a terminal decision; null decided_after_interview (legacy rows) = direct. */
+export function decisionVariantLabel(status: 'accepted' | 'rejected', decidedAfterInterview: boolean | null): string {
+  if (decidedAfterInterview) return 'after interview'
+  return status === 'accepted' ? 'early' : 'before interview'
 }
 
 /** Format an ISO datetime string in the GMT+7 (Asia/Bangkok) timezone. */
 export function formatDateTimeGMT7(dateStr: string): string {
-  return new Date(dateStr).toLocaleString("en-US", {
-    timeZone: "Asia/Bangkok",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
+  // sv-SE renders `YYYY-MM-DD HH:mm`, matching preferred_start_date's format
+  return new Date(dateStr).toLocaleString('sv-SE', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
     hour12: false,
   })
 }
 
-export function getProgramColor(programType: ProgramType): string {
-  return PROGRAMS[programType]?.color || "#6366f1"
+/**
+ * Normalize searchable text so partial matching is resilient to casing,
+ * accents, whitespace, and punctuation.
+ */
+function normalizeSearchText(value: unknown): string {
+  return String(value ?? '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '')
 }
 
-export function getProgramName(programType: ProgramType): string {
-  return PROGRAMS[programType]?.shortName ?? "Other"
-}
-
-export function normalizeApplicationStatus(status: ApplicationStatus): ApplicationStatus {
-  const legacyStatusMap: Partial<Record<ApplicationStatus, ApplicationStatus>> = {
-    pending: "new",
-    shortlisted: "reviewing",
-    approved: "accepted",
-    waitlist: "rejected",
-    withdrawn: "rejected",
+/** True when the app falls under the given card/sub-item filter. */
+export function matchesStatusFilter(app: Application, filter: StatusFilter): boolean {
+  switch (filter) {
+    case 'all':
+      return true
+    case 'new_group':
+      return app.status === 'submitted' || app.status === 'reviewing'
+    // Legacy rows (decided_after_interview null) count as direct decisions.
+    case 'accepted_early':
+      return app.status === 'accepted' && !app.decided_after_interview
+    case 'accepted_after':
+      return app.status === 'accepted' && app.decided_after_interview === true
+    case 'rejected_before':
+      return app.status === 'rejected' && !app.decided_after_interview
+    case 'rejected_after':
+      return app.status === 'rejected' && app.decided_after_interview === true
+    default:
+      return app.status === filter
   }
-  return legacyStatusMap[status] ?? status
 }
 
-/** Count applications matching a program filter (including the synthetic "other" bucket). */
-export function getCountByProgram(
-  applications: Application[],
-  program: ProgramFilter,
-): number {
-  return applications.filter((application) => matchesProgramFilter(application, program)).length
-}
-
-function matchesProgramFilter(application: Application, programFilter: ProgramFilter): boolean {
-  if (programFilter === "all") return true
-  if (programFilter === "other") {
-    return !Object.keys(PROGRAMS).includes(application.program_type)
-  }
-  return application.program_type === programFilter
-}
-
-/** Count applications with a given status, scoped to the active program filter. */
-export function getStatusCount(
-  applications: Application[],
-  programFilter: ProgramFilter,
-  status: ApplicationStatus,
-): number {
-  return applications.filter(
-    (application) => matchesProgramFilter(application, programFilter) && application.status === status,
-  ).length
-}
-
-export function getGroupCount(
-  applications: Application[],
-  programFilter: ProgramFilter,
-  groupKey: keyof typeof STATUS_GROUPS,
-): number {
-  const statuses = STATUS_GROUPS[groupKey].statuses
-  return applications.filter(
-    (application) =>
-      matchesProgramFilter(application, programFilter) && statuses.includes(application.status),
-  ).length
+export function countByFilter(applications: Application[], filter: StatusFilter): number {
+  return applications.filter((app) => matchesStatusFilter(app, filter)).length
 }
 
 export interface ApplicationFilters {
-  programFilter: ProgramFilter
-  statusFilter: "all" | ApplicationStatus | ApplicationStatus[]
-  startDateFrom: string
-  startDateTo: string
+  statusFilter: StatusFilter
   searchQuery: string
+  /** Track is single-select in the UI; empty array = All. */
+  tracks: AdminTrackId[]
+  countries: string[]
+  /** Inclusive 'YYYY-MM-DD' bounds on confirmed_start_date; '' = unbounded. */
+  moveInFrom: string
+  moveInTo: string
 }
 
-function normalizeSearchText(value: unknown): string {
-  return String(value ?? "")
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, "")
-}
-
-/** Apply the program, status, start-date range, and search filters to the application list. */
 export function filterApplications(
   applications: Application[],
-  { programFilter, statusFilter, startDateFrom, startDateTo, searchQuery }: ApplicationFilters,
+  { statusFilter, searchQuery, tracks, countries, moveInFrom, moveInTo }: ApplicationFilters,
 ): Application[] {
+  const searchTerms = searchQuery.trim().split(/\s+/).map(normalizeSearchText).filter(Boolean)
   return applications.filter((app) => {
-    if (!matchesProgramFilter(app, programFilter)) return false
+    if (!matchesStatusFilter(app, statusFilter)) return false
+    if (tracks.length > 0 && !tracks.includes(app.track)) return false
+    if (countries.length > 0 && !countries.includes(app.country)) return false
 
-    // Status filter
-    if (statusFilter !== "all") {
-      if (Array.isArray(statusFilter)) {
-        if (!statusFilter.includes(app.status)) return false
-      } else if (app.status !== statusFilter) return false
-    }
-
-    // Start date range filter
-    if (startDateFrom || startDateTo) {
-      const appDate = new Date(app.preferred_start_date)
-      if (startDateFrom && appDate < new Date(startDateFrom)) return false
-      if (startDateTo) {
-        const toDate = new Date(startDateTo)
-        toDate.setHours(23, 59, 59, 999)
-        if (appDate > toDate) return false
-      }
-    }
-
-    const searchTerms = searchQuery
-      .trim()
-      .split(/\s+/)
-      .map(normalizeSearchText)
-      .filter(Boolean)
+    // 'YYYY-MM-DD' compares correctly as a string
+    if (moveInFrom && app.confirmed_start_date < moveInFrom) return false
+    if (moveInTo && app.confirmed_start_date > moveInTo) return false
 
     if (searchTerms.length > 0) {
       const searchableText = [
         app.full_name,
         app.email,
-        app.contact_info,
-        app.telegram,
-        app.whatsapp,
-        app.linkedin_link,
-        app.github_link,
-        app.social_links,
-        app.organization,
-        app.role_title,
+        app.telegram_or_whatsapp,
+        app.country,
+        ADMIN_TRACK_LABELS[app.track],
+        STATUS_CONFIG[app.status].label,
+        app.primary_link,
+        app.linkedin,
+        app.extra_link,
+        app.about,
+        app.contribution,
+        app.past_contribution,
+        app.participation_commitment,
       ]
         .map(normalizeSearchText)
-        .join("|")
-
+        .join('|')
       return searchTerms.every((term) => searchableText.includes(term))
     }
-
     return true
   })
 }
 
-/**
- * Sort applications. An active column sort takes precedence over the dropdown
- * sort; the original list is not mutated.
- */
+function compareBy(a: Application, b: Application, column: SortColumn): number {
+  const trackOrder: Record<AdminTrackId, number> = { crypto: 0, art: 1, longevity: 2, other: 3 }
+  const statusOrder: Record<ApplicationStatus, number> = {
+    submitted: 0,
+    reviewing: 1,
+    interview: 2,
+    accepted: 3,
+    rejected: 4,
+    cancelled: 5,
+  }
+  switch (column) {
+    case 'name':
+      return a.full_name.localeCompare(b.full_name)
+    case 'submitted':
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    case 'track':
+      return trackOrder[a.track] - trackOrder[b.track]
+    case 'confirmed':
+      return a.confirmed_start_date.localeCompare(b.confirmed_start_date)
+    case 'country':
+      return a.country.localeCompare(b.country)
+    case 'status':
+      return statusOrder[a.status] - statusOrder[b.status]
+  }
+}
+
 export function sortApplications(
   applications: Application[],
-  columnSort: ColumnSort,
-  sortBy: SortType,
+  column: SortColumn,
+  direction: SortDirection,
 ): Application[] {
-  return [...applications].sort((a, b) => {
-    if (columnSort.key) {
-      const direction = columnSort.direction === "asc" ? 1 : -1
-      switch (columnSort.key) {
-        case "full_name":
-          return direction * a.full_name.localeCompare(b.full_name)
-        case "email":
-          return direction * a.email.localeCompare(b.email)
-        case "program_type":
-          return direction * (a.program_type || "").localeCompare(b.program_type || "")
-        case "preferred_start_date":
-          return direction * a.preferred_start_date.localeCompare(b.preferred_start_date)
-        case "status":
-          return direction * a.status.localeCompare(b.status)
-        case "created_at":
-          return direction * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-        default:
-          return 0
-      }
-    }
-
-    switch (sortBy) {
-      case "newest":
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      case "oldest":
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      case "name":
-        return a.full_name.localeCompare(b.full_name)
-      default:
-        return 0
-    }
-  })
-}
-
-const CSV_HEADERS = [
-  "ID", "Program", "Submitted At", "Full Name", "Email", "Telegram", "WhatsApp",
-  "Country", "City", "Role", "Organization", "Website",
-  "Preferred Start Date", "Actual Start Date", "Preferred Duration", "About & Contribution", "Proposed Contribution",
-  "Bio", "Why 4Seas", "Why This Track", "Social Links", "LinkedIn", "GitHub", "Portfolio",
-  "Content Studio Plans", "Needs Accommodation", "Needs Support",
-  "Previous Experience", "Anything Else", "Program Specific Answers",
-  "Status", "Reviewed By", "Reviewed At", "Comments",
-]
-
-/** Quote a CSV field, escape embedded quotes, and collapse newlines into spaces. */
-function csvCell(value: string | null | undefined): string {
-  return `"${(value || "").replace(/"/g, '""').replace(/\n/g, " ")}"`
-}
-
-/** Build the full CSV document string for the given applications and their comments. */
-export function buildApplicationsCsv(
-  applications: Application[],
-  comments: Record<string, AdminComment[]>,
-): string {
-  const rows = applications.map((app) => {
-    const appComments = comments[app.id] || []
-    const commentText = appComments
-      .map((c) => `[${c.reviewer_name} - ${new Date(c.created_at).toLocaleString()}]: ${c.comment}`)
-      .join(" | ")
-    const programSpecific = app.program_specific_answers
-      ? JSON.stringify(app.program_specific_answers)
-      : ""
-
-    return [
-      app.id,
-      app.program_type,
-      formatDateTimeGMT7(app.created_at),
-      csvCell(app.full_name),
-      csvCell(app.email),
-      app.telegram || "",
-      app.whatsapp || "",
-      app.country || "",
-      app.city || "",
-      app.role_title || "",
-      app.organization || "",
-      app.website || "",
-      app.preferred_start_date,
-      app.actual_start_date || "",
-      app.preferred_duration || "",
-      csvCell(app.about_and_contribution),
-      csvCell(app.proposed_contribution),
-      csvCell(app.bio),
-      csvCell(app.why_4seas),
-      csvCell(app.why_this_track),
-      csvCell(app.social_links),
-      app.linkedin_link || "",
-      app.github_link || "",
-      app.portfolio_url || "",
-      csvCell(app.content_studio_plans),
-      app.needs_accommodation == null ? "" : app.needs_accommodation ? "Yes" : "No",
-      csvCell(app.needs_support),
-      csvCell(app.previous_community_experience),
-      csvCell(app.anything_else),
-      `"${programSpecific.replace(/"/g, '""')}"`,
-      app.status,
-      app.reviewed_by || "",
-      app.reviewed_at ? formatDateTimeGMT7(app.reviewed_at) : "",
-      csvCell(commentText),
-    ].join(",")
-  })
-
-  return [CSV_HEADERS.join(","), ...rows].join("\n")
-}
-
-/** Trigger a client-side download of a CSV string as a file. */
-export function downloadCsv(csvContent: string, fileName: string): void {
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-  const link = document.createElement("a")
-  const objectUrl = URL.createObjectURL(blob)
-  link.href = objectUrl
-  link.download = fileName
-  link.click()
-  URL.revokeObjectURL(objectUrl)
+  const dir = direction === 'asc' ? 1 : -1
+  return [...applications].sort((a, b) => dir * compareBy(a, b, column))
 }

@@ -1,251 +1,156 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { motion } from "framer-motion"
-import { Check, ChevronsUpDown, Loader2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { useState } from 'react'
+import Link from 'next/link'
+import { motion } from 'framer-motion'
+import { Check, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { formatSocialLink, SocialPlatformIcon } from '@/components/shared/social-platform-icon'
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
-import { withBasePath } from "@/lib/paths"
-import {
-  APPLICATION_RESPONSE_CHARACTER_LIMIT,
-  getRemainingCharacters,
-  isResponseOverCharacterLimit,
-} from "@/lib/application-limits"
-
-export type ProgramType = 'crypto' | 'art' | 'longevity'
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { CountryCombobox } from '@/components/residency/country-combobox'
+import { submitApplication } from '@/lib/actions/public'
+import { COMMUNITY_LINKS } from '@/lib/content/site'
+import type { TrackConfig } from '@/lib/content/tracks'
+import type { StartDateOption } from '@/lib/content/start-dates'
 
 interface ApplicationFormProps {
-  programType: ProgramType
-  programTitle: string
-  programColor: string
+  track: Pick<TrackConfig, 'id' | 'name' | 'accentColor' | 'apply'>
+  startDateOptions: StartDateOption[]
 }
 
 interface FormData {
-  name: string
+  fullName: string
   email: string
-  telegram_or_whatsapp: string
-  nationality: string
-  about_you: string
-  contribution_plan: string
-  contribution_past: string
-  contribution_commitment: string
-  social_link: string
+  contactMethod: 'telegram' | 'whatsapp'
+  telegramOrWhatsapp: string
+  country: string
+  preferredStartDate: string
+  about: string
+  contribution: string
+  pastContribution: string
+  participationCommitment: string
+  primaryLink: string
   linkedin: string
-  github: string
-  content_studio: string
-  preferred_start_date: string
+  extraLink: string
+  contentStudioPlans: string
+  website: string // honeypot
 }
 
-const INITIAL_FORM_DATA: FormData = {
-  name: '',
+const initialFormData: FormData = {
+  fullName: '',
   email: '',
-  telegram_or_whatsapp: '',
-  nationality: '',
-  about_you: '',
-  contribution_plan: '',
-  contribution_past: '',
-  contribution_commitment: '',
-  social_link: '',
+  contactMethod: 'telegram',
+  telegramOrWhatsapp: '',
+  country: '',
+  preferredStartDate: '',
+  about: '',
+  contribution: '',
+  pastContribution: '',
+  participationCommitment: '',
+  primaryLink: '',
   linkedin: '',
-  github: '',
-  content_studio: '',
-  preferred_start_date: '',
+  extraLink: '',
+  contentStudioPlans: '',
+  website: '',
 }
 
-const COUNTRIES_AND_REGIONS = [
-  "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan",
-  "Bahrain", "Bangladesh", "Belarus", "Belgium", "Bolivia", "Bosnia & Herzegovina", "Brazil", "Bulgaria", "Cambodia",
-  "Cameroon", "Canada", "Chile", "China", "Colombia", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czech Republic",
-  "Denmark", "Ecuador", "Egypt", "Estonia", "Ethiopia", "Finland", "France", "Georgia", "Germany", "Ghana", "Greece",
-  "Guatemala", "Honduras", "Hong Kong SAR", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland",
-  "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kosovo", "Kuwait", "Latvia", "Lebanon",
-  "Lithuania", "Luxembourg", "Macau SAR", "Malaysia", "Malta", "Mexico", "Moldova", "Morocco", "Myanmar", "Nepal",
-  "Netherlands", "New Zealand", "Nigeria", "North Macedonia", "Norway", "Oman", "Pakistan", "Palestine", "Panama",
-  "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Saudi Arabia", "Senegal",
-  "Serbia", "Singapore", "Slovakia", "Slovenia", "South Africa", "South Korea", "Spain", "Sri Lanka", "Sweden",
-  "Switzerland", "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Tunisia", "Turkey", "Uganda", "Ukraine",
-  "United Arab Emirates", "United Kingdom", "United States", "Uruguay", "Uzbekistan", "Venezuela", "Vietnam",
-  "Yemen", "Zambia", "Zimbabwe",
+const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length
+
+type FieldErrors = Partial<Record<keyof FormData, string>>
+
+// Aligned with the server's zod .email() — the old includes('@') let through
+// values the server would then reject.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// Validation + focus order, top to bottom as rendered.
+const FIELD_ORDER: (keyof FormData)[] = [
+  'fullName', 'email', 'telegramOrWhatsapp', 'preferredStartDate', 'country',
+  'about', 'contribution', 'pastContribution', 'participationCommitment', 'primaryLink',
 ]
 
-const START_DATE_OPTIONS = [
-  { value: "2026-07-15", label: "July 15, 2026" },
-  { value: "2026-08-01", label: "August 1, 2026" },
-  { value: "2026-08-15", label: "August 15, 2026" },
-  { value: "2026-09-01", label: "September 1, 2026" },
-  { value: "2026-09-15", label: "September 15, 2026" },
-  { value: "2026-10-01", label: "October 1, 2026" },
-]
+const fieldId = (field: keyof FormData) => `apply-${field}`
 
-const LONGEVITY_APPLICATION_STEPS = [
-  "Submit the application form, including your background and planned contribution",
-  "Join an online interview",
-  "Receive the selection result",
-]
-
-const SOCIAL_LINK_LABELS: Record<ProgramType, string> = {
-  art: "Portfolio or Personal Website",
-  longevity: "Personal Website, Research Profile, or Social Media",
-  crypto: "Your Social Media, Personal Website or Publications",
+function validate(data: FormData): FieldErrors {
+  const errors: FieldErrors = {}
+  if (!data.fullName.trim()) errors.fullName = 'Please enter your name'
+  if (!EMAIL_RE.test(data.email.trim())) errors.email = 'Please enter a valid email address'
+  if (!data.telegramOrWhatsapp.trim()) {
+    errors.telegramOrWhatsapp =
+      data.contactMethod === 'whatsapp' ? 'Please enter your WhatsApp number' : 'Please enter your Telegram username'
+  }
+  if (!data.preferredStartDate) errors.preferredStartDate = 'Please select a start date'
+  if (!data.country.trim()) errors.country = 'Please select your country or region'
+  if (!data.about.trim()) errors.about = 'Please tell us about yourself'
+  else if (countWords(data.about) > 300) errors.about = 'Please keep your response under 300 words'
+  if (!data.contribution.trim()) errors.contribution = 'Please tell us what you plan to contribute'
+  else if (countWords(data.contribution) > 300) errors.contribution = 'Please keep your response under 300 words'
+  if (!data.pastContribution.trim()) errors.pastContribution = 'Please tell us about a past contribution'
+  else if (countWords(data.pastContribution) > 300) errors.pastContribution = 'Please keep your response under 300 words'
+  if (!data.participationCommitment.trim()) errors.participationCommitment = 'Please describe your participation commitment'
+  else if (countWords(data.participationCommitment) > 300) errors.participationCommitment = 'Please keep your response under 300 words'
+  if (!data.primaryLink.trim()) errors.primaryLink = 'Please provide at least one link'
+  return errors
 }
 
-const SECONDARY_LINK_CONFIG: Record<ProgramType, { label: string; placeholder: string; hint?: string }> = {
-  art: { label: "Social Media", placeholder: "Instagram, X, Behance, etc." },
-  longevity: {
-    label: "Additional Information",
-    placeholder: "Additional link or brief note...",
-    hint: "Share any additional link or detail that may help us understand your work and interests.",
-  },
-  crypto: { label: "GitHub", placeholder: "https://github.com/..." },
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null
+  return <p className="text-sm text-red-500">{message}</p>
 }
 
-function CharacterLimitedTextarea({
-  value,
-  onChange,
-  placeholder,
-  rows = 4,
-}: {
-  value: string
-  onChange: (value: string) => void
-  placeholder?: string
-  rows?: number
-}) {
-  const remainingCharacters = getRemainingCharacters(value)
-  const isOverLimit = isResponseOverCharacterLimit(value)
-
-  return (
-    <>
-      <Textarea
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        rows={rows}
-        className={isOverLimit ? "border-red-500 focus-visible:ring-red-500" : ""}
-      />
-      <p className={`text-xs ${isOverLimit ? "font-medium text-red-500" : "text-muted-foreground"}`}>
-        {remainingCharacters} characters remaining{isOverLimit && " - Please reduce your response"}
-      </p>
-    </>
-  )
-}
-
-export default function ApplicationForm({ programType, programTitle, programColor }: ApplicationFormProps) {
-  const router = useRouter()
-  const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA)
+export default function ApplicationForm({ track, startDateOptions }: ApplicationFormProps) {
+  const [formData, setFormData] = useState<FormData>(initialFormData)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [countryOpen, setCountryOpen] = useState(false)
+  const [errors, setErrors] = useState<FieldErrors>({})
+  const [serverError, setServerError] = useState<string | null>(null)
 
-  const handleFieldChange = (field: keyof FormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    setError(null)
+  const handleInputChange = <K extends keyof FormData>(field: K, value: FormData[K]) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+    setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev))
+    setServerError(null)
   }
 
-  const validateForm = () => {
-    if (!formData.name.trim()) {
-      setError('Please enter your name')
-      return false
-    }
-    if (!formData.email.trim() || !formData.email.includes('@')) {
-      setError('Please enter a valid email address')
-      return false
-    }
-    if (!formData.telegram_or_whatsapp.trim()) {
-      setError('Please provide WhatsApp or Telegram contact')
-      return false
-    }
-    if (!formData.nationality.trim()) {
-      setError('Please enter your country')
-      return false
-    }
-    if (!formData.about_you.trim()) {
-      setError('Please tell us about yourself')
-      return false
-    }
-    if (isResponseOverCharacterLimit(formData.about_you)) {
-      setError(`Please keep your response under ${APPLICATION_RESPONSE_CHARACTER_LIMIT} characters`)
-      return false
-    }
-    const contributionFields = [
-      ["Please describe how you plan to contribute during your stay", formData.contribution_plan],
-      ["Please share a past contribution experience", formData.contribution_past],
-      ["Please describe your commitment during your stay", formData.contribution_commitment],
-    ] as const
-    for (const [message, value] of contributionFields) {
-      if (!value.trim()) {
-        setError(message)
-        return false
-      }
-      if (isResponseOverCharacterLimit(value)) {
-        setError(`Please keep each response under ${APPLICATION_RESPONSE_CHARACTER_LIMIT} characters`)
-        return false
-      }
-    }
-    if (!formData.social_link.trim()) {
-      setError('Please provide at least one social link')
-      return false
-    }
-    if (!formData.preferred_start_date) {
-      setError('Please select a start date')
-      return false
-    }
-    return true
-  }
+  const aboutWordCount = countWords(formData.about)
+  const isAboutOverLimit = aboutWordCount > 300
+  const contributionWordCount = countWords(formData.contribution)
+  const isContributionOverLimit = contributionWordCount > 300
+  const pastContributionWordCount = countWords(formData.pastContribution)
+  const isPastContributionOverLimit = pastContributionWordCount > 300
+  const participationCommitmentWordCount = countWords(formData.participationCommitment)
+  const isParticipationCommitmentOverLimit = participationCommitmentWordCount > 300
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!validateForm()) return
+    const errs = validate(formData)
+    setErrors(errs)
+    setServerError(null)
+    const firstInvalid = FIELD_ORDER.find((f) => errs[f])
+    if (firstInvalid) {
+      const el = document.getElementById(fieldId(firstInvalid))
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el?.focus({ preventScroll: true })
+      return
+    }
 
     setIsSubmitting(true)
-    setError(null)
-
     try {
-      const response = await fetch(withBasePath('/api/applications'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          program_type: programType,
-          full_name: formData.name,
-          email: formData.email,
-          telegram: formData.telegram_or_whatsapp || null,
-          country: formData.nationality || null,
-          bio: formData.about_you || null,
-          social_links: formData.social_link || null,
-          linkedin_link: formData.linkedin || null,
-          github_link: formData.github || null,
-          preferred_start_date: formData.preferred_start_date,
-          preferred_duration: '1 month',
-          needs_support: formData.content_studio || null,
-          status: 'new',
-          about_and_contribution: formData.about_you,
-          contribution_plan: formData.contribution_plan,
-          contribution_past: formData.contribution_past,
-          contribution_commitment: formData.contribution_commitment,
-        }),
-      })
-
-      if (!response.ok) {
-        const result = (await response.json().catch(() => null)) as { error?: string } | null
-        throw new Error(result?.error || 'Failed to submit')
+      const result = await submitApplication({ track: track.id, ...formData })
+      if (result.ok) {
+        setIsSubmitted(true)
+      } else {
+        setServerError(result.message ?? 'Failed to submit application. Please try again.')
       }
-
-      setIsSubmitted(true)
-    } catch (err) {
-      console.error('Submit error:', err)
-      setError('Failed to submit application. Please try again.')
+    } catch {
+      setServerError('Failed to submit application. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -253,325 +158,384 @@ export default function ApplicationForm({ programType, programTitle, programColo
 
   if (isSubmitted) {
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="text-center py-16"
-      >
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-16">
         <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
           <Check className="w-10 h-10 text-green-600" />
         </div>
         <h2 className="text-3xl font-bold text-foreground mb-4">Application Submitted!</h2>
         <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-          Thank you for applying to {programTitle}. We will review your application and notify you of the result within one week via the contact information you provided.
+          Thank you for applying to {track.name}. We&apos;ve received your application and will review it within one
+          week. If we&apos;d like to learn more, we&apos;ll contact you to arrange a short interview. You&apos;ll receive
+          the final decision by email.
         </p>
-        
+
         <div className="bg-muted/50 rounded-lg p-6 max-w-md mx-auto mb-8">
           <p className="text-sm text-foreground font-medium mb-4">Join our community while you wait:</p>
           <div className="flex flex-col gap-3 justify-center">
-            <a 
-              href="https://x.com/4seasDeSoc" 
-              target="_blank" 
+            <a
+              href={COMMUNITY_LINKS.x}
+              target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-black/80 transition-colors text-sm"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-              </svg>
-              Follow on X
+              <SocialPlatformIcon url={COMMUNITY_LINKS.x} />
+              {formatSocialLink(COMMUNITY_LINKS.x)}
             </a>
-            <a 
-              href="https://t.me/NomadsBase" 
-              target="_blank" 
+            <a
+              href={COMMUNITY_LINKS.telegram}
+              target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#0088cc] text-white rounded-lg hover:bg-[#0077b5] transition-colors text-sm"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-              </svg>
-              Join Telegram Group
+              <SocialPlatformIcon url={COMMUNITY_LINKS.telegram} />
+              {formatSocialLink(COMMUNITY_LINKS.telegram)}
             </a>
-            <a 
-              href="https://chat.whatsapp.com/BeHrYvwwepbIN9m1L859I9" 
-              target="_blank" 
+            <a
+              href={COMMUNITY_LINKS.whatsapp}
+              target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-              </svg>
-              Join WhatsApp Group
+              <SocialPlatformIcon url={COMMUNITY_LINKS.whatsapp} />
+              {formatSocialLink(COMMUNITY_LINKS.whatsapp)}
             </a>
           </div>
         </div>
 
-        <Button onClick={() => router.push(`/${programType}`)}>
-          Back to {programTitle}
+        <Button asChild>
+          <Link href={`/${track.id}`}>Back to {track.name}</Link>
         </Button>
       </motion.div>
     )
   }
 
-  const secondaryLink = SECONDARY_LINK_CONFIG[programType]
-
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-8">
-      {programType === 'longevity' && (
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="border-b border-border px-6 py-4" style={{ backgroundColor: "#10b98115" }}>
-            <h2 className="text-base font-semibold text-foreground">Process &amp; Duration</h2>
+      {/* Track-specific duration — the shared application process appears above the form. */}
+      {track.apply.showProcessSection && (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="px-6 py-4 border-b border-border" style={{ backgroundColor: `${track.accentColor}15` }}>
+            <h2 className="text-base font-semibold text-foreground">Residency Duration</h2>
           </div>
-          <div className="space-y-6 px-6 py-5">
-            <div>
-              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Application Process</h3>
-              <ol className="space-y-2">
-                {LONGEVITY_APPLICATION_STEPS.map((step, index) => (
-                  <li key={step} className="flex items-start gap-3">
-                    <span
-                      className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                      style={{ backgroundColor: "#10b981" }}
-                    >
-                      {index + 1}
-                    </span>
-                    <span className="text-sm leading-relaxed text-foreground">{step}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-            <div>
-              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Residency Duration</h3>
-              <p className="text-sm text-foreground">At least one month</p>
-            </div>
+          <div className="px-6 py-5">
+            <p className="text-sm text-foreground">At least one month</p>
           </div>
         </div>
       )}
 
+      {/* Honeypot — hidden from humans, tempting for bots */}
+      <div className="absolute -left-[9999px] top-auto" aria-hidden="true">
+        <label>
+          Website
+          <input
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={formData.website}
+            onChange={(e) => handleInputChange('website', e.target.value)}
+          />
+        </label>
+      </div>
+
+      {/* Personal Information */}
       <div className="space-y-6">
         <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">PERSONAL INFORMATION</h2>
 
         <div className="space-y-2">
-          <Label htmlFor="application-name">Name <span className="text-red-500">*</span></Label>
+          <Label htmlFor={fieldId('fullName')}>
+            Name <span className="text-red-500">*</span>
+          </Label>
           <Input
-            id="application-name"
-            value={formData.name}
-            onChange={(event) => handleFieldChange('name', event.target.value)}
+            id={fieldId('fullName')}
+            autoComplete="name"
+            aria-invalid={!!errors.fullName || undefined}
+            value={formData.fullName}
+            onChange={(e) => handleInputChange('fullName', e.target.value)}
             placeholder="Your name"
           />
+          <FieldError message={errors.fullName} />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="application-email">Email <span className="text-red-500">*</span></Label>
+          <Label htmlFor={fieldId('email')}>
+            Email <span className="text-red-500">*</span>
+          </Label>
           <Input
-            id="application-email"
+            id={fieldId('email')}
             type="email"
+            autoComplete="email"
+            aria-invalid={!!errors.email || undefined}
             value={formData.email}
-            onChange={(event) => handleFieldChange('email', event.target.value)}
+            onChange={(e) => handleInputChange('email', e.target.value)}
             placeholder="your@email.com"
           />
+          <FieldError message={errors.email} />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="application-contact">WhatsApp or Telegram <span className="text-red-500">*</span></Label>
+          <Label htmlFor={fieldId('telegramOrWhatsapp')}>
+            Contact <span className="text-red-500">*</span>
+          </Label>
+          <div className="flex gap-2">
+            {(['telegram', 'whatsapp'] as const).map((method) => (
+              <button
+                key={method}
+                type="button"
+                aria-pressed={formData.contactMethod === method}
+                onClick={() => {
+                  handleInputChange('contactMethod', method)
+                  setErrors((prev) => (prev.telegramOrWhatsapp ? { ...prev, telegramOrWhatsapp: undefined } : prev))
+                }}
+                className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                  formData.contactMethod === method
+                    ? 'bg-foreground text-background border-foreground'
+                    : 'border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {method === 'telegram' ? 'Telegram' : 'WhatsApp'}
+              </button>
+            ))}
+          </div>
           <Input
-            id="application-contact"
-            value={formData.telegram_or_whatsapp}
-            onChange={(event) => handleFieldChange('telegram_or_whatsapp', event.target.value)}
-            placeholder="@username or +1234567890"
+            id={fieldId('telegramOrWhatsapp')}
+            type={formData.contactMethod === 'whatsapp' ? 'tel' : 'text'}
+            inputMode={formData.contactMethod === 'whatsapp' ? 'tel' : undefined}
+            autoComplete={formData.contactMethod === 'whatsapp' ? 'tel' : 'off'}
+            aria-invalid={!!errors.telegramOrWhatsapp || undefined}
+            value={formData.telegramOrWhatsapp}
+            onChange={(e) => handleInputChange('telegramOrWhatsapp', e.target.value)}
+            placeholder={formData.contactMethod === 'whatsapp' ? '+66 81 234 5678' : '@username'}
           />
+          <FieldError message={errors.telegramOrWhatsapp} />
         </div>
       </div>
 
+      {/* Visit Details */}
       <div className="space-y-6">
         <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">VISIT DETAILS</h2>
 
         <div className="space-y-2">
-          <Label htmlFor="application-start-date">Preferred Start Date <span className="text-red-500">*</span></Label>
-          <select
-            id="application-start-date"
-            value={formData.preferred_start_date}
-            onChange={(event) => handleFieldChange('preferred_start_date', event.target.value)}
-            className="w-full h-10 px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground"
+          <Label htmlFor={fieldId('preferredStartDate')}>
+            Preferred Start Date <span className="text-red-500">*</span>
+          </Label>
+          <Select
+            value={formData.preferredStartDate}
+            onValueChange={(v) => handleInputChange('preferredStartDate', v)}
           >
-            <option value="">Select a start date</option>
-            {START_DATE_OPTIONS.map(({ value, label }) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
+            <SelectTrigger
+              id={fieldId('preferredStartDate')}
+              className="w-full"
+              aria-invalid={!!errors.preferredStartDate || undefined}
+            >
+              <SelectValue placeholder="Select a start date" />
+            </SelectTrigger>
+            <SelectContent>
+              {startDateOptions.map(({ value, label }) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FieldError message={errors.preferredStartDate} />
         </div>
 
         <div className="space-y-2">
-          <Label>Country &amp; Region <span className="text-red-500">*</span></Label>
-          <Popover open={countryOpen} onOpenChange={setCountryOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                role="combobox"
-                aria-expanded={countryOpen}
-                className="w-full justify-between font-normal"
-              >
-                <span className={formData.nationality ? "text-foreground" : "text-muted-foreground"}>
-                  {formData.nationality || "Select a country or region..."}
-                </span>
-                <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search country or region..." />
-                <CommandList>
-                  <CommandEmpty>No result found.</CommandEmpty>
-                  <CommandGroup>
-                    {COUNTRIES_AND_REGIONS.map((country) => (
-                      <CommandItem
-                        key={country}
-                        value={country}
-                        onSelect={(value) => {
-                          handleFieldChange('nationality', value === formData.nationality ? '' : value)
-                          setCountryOpen(false)
-                        }}
-                      >
-                        <Check className={`mr-2 size-4 ${formData.nationality === country ? "opacity-100" : "opacity-0"}`} />
-                        {country}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+          <Label htmlFor={fieldId('country')}>
+            Country/Region <span className="text-red-500">*</span>
+          </Label>
+          <CountryCombobox
+            id={fieldId('country')}
+            value={formData.country}
+            onChange={(v) => handleInputChange('country', v)}
+            invalid={!!errors.country}
+          />
+          <FieldError message={errors.country} />
         </div>
       </div>
 
+      {/* About You */}
       <div className="space-y-6">
         <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">ABOUT YOU</h2>
 
         <div className="space-y-2">
-          <Label>Tell us about yourself <span className="text-red-500">*</span></Label>
+          <Label htmlFor={fieldId('about')}>
+            Tell us about yourself <span className="text-red-500">*</span>
+          </Label>
           <p className="text-sm text-muted-foreground">
-            Tell us a bit about yourself and why you&apos;re interested in the program. What are you currently exploring, building, researching, or thinking about? And during your stay, how do you imagine contributing to the community — through conversations, public sessions, creative work, research, or other forms of exchange?
+            Tell us a bit about yourself and why you&apos;re interested in the program. What are you currently
+            exploring, building, researching, or thinking about? And during your stay, how do you imagine contributing
+            to the community — through conversations, public sessions, creative work, research, or other forms of
+            exchange?
           </p>
           <p className="text-sm text-muted-foreground">
             We value curiosity, openness, and a willingness to participate in community life.
           </p>
-          <p className="text-sm text-muted-foreground italic">
-            (Please keep your response under {APPLICATION_RESPONSE_CHARACTER_LIMIT} characters.)
-          </p>
-          <CharacterLimitedTextarea
-            value={formData.about_you}
-            onChange={(value) => handleFieldChange('about_you', value)}
+          <p className="text-sm text-muted-foreground italic">(Please keep your response under 300 words.)</p>
+          <Textarea
+            id={fieldId('about')}
+            aria-invalid={!!errors.about || undefined}
+            value={formData.about}
+            onChange={(e) => handleInputChange('about', e.target.value)}
             placeholder="Tell us about yourself..."
             rows={6}
+            className={isAboutOverLimit ? 'border-red-500 focus-visible:ring-red-500' : ''}
           />
-        </div>
-      </div>
-
-      <div className="space-y-6">
-        <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">CONTRIBUTION</h2>
-        <div className="space-y-2">
-          <Label>How do you plan to contribute during your stay? <span className="text-red-500">*</span></Label>
-          <p className="text-sm text-muted-foreground">
-            Describe one or two concrete ways you hope to contribute to the 4Seas community during your residency.
+          <p className={`text-xs ${isAboutOverLimit ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}>
+            {aboutWordCount}/300 words {isAboutOverLimit && '- Please reduce your response'}
           </p>
-          <CharacterLimitedTextarea
-            value={formData.contribution_plan}
-            onChange={(value) => handleFieldChange('contribution_plan', value)}
+          <FieldError message={errors.about} />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor={fieldId('contribution')}>
+            How do you plan to contribute during your stay? <span className="text-red-500">*</span>
+          </Label>
+          <p className="text-sm text-muted-foreground">
+            Please describe one or two concrete ways you hope to contribute to the 4Seas community during your
+            residency. This could include sharing knowledge, leading a session, helping with operations, creating
+            content, supporting research, cooking, building projects, or anything else that creates value for others.
+          </p>
+          <Textarea
+            id={fieldId('contribution')}
+            aria-invalid={!!errors.contribution || undefined}
+            maxLength={5000}
+            value={formData.contribution}
+            onChange={(e) => handleInputChange('contribution', e.target.value)}
             placeholder="Describe your planned contribution..."
+            rows={5}
+            className={isContributionOverLimit ? 'border-red-500 focus-visible:ring-red-500' : ''}
           />
+          <p className={`text-xs ${isContributionOverLimit ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}>
+            {contributionWordCount}/300 words {isContributionOverLimit && '- Please reduce your response'}
+          </p>
+          <FieldError message={errors.contribution} />
         </div>
 
         <div className="space-y-2">
-          <Label>Tell us about a time you contributed to a community. <span className="text-red-500">*</span></Label>
+          <Label htmlFor={fieldId('pastContribution')}>
+            Tell us about a time you contributed to a community. <span className="text-red-500">*</span>
+          </Label>
           <p className="text-sm text-muted-foreground">
-            Briefly describe what you did and the impact it had.
+            Briefly describe a project, community, or team where you actively contributed. What did you do, and what
+            was the impact?
           </p>
-          <CharacterLimitedTextarea
-            value={formData.contribution_past}
-            onChange={(value) => handleFieldChange('contribution_past', value)}
+          <Textarea
+            id={fieldId('pastContribution')}
+            aria-invalid={!!errors.pastContribution || undefined}
+            maxLength={5000}
+            value={formData.pastContribution}
+            onChange={(e) => handleInputChange('pastContribution', e.target.value)}
             placeholder="Share a past contribution experience..."
+            rows={5}
+            className={isPastContributionOverLimit ? 'border-red-500 focus-visible:ring-red-500' : ''}
           />
+          <p className={`text-xs ${isPastContributionOverLimit ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}>
+            {pastContributionWordCount}/300 words {isPastContributionOverLimit && '- Please reduce your response'}
+          </p>
+          <FieldError message={errors.pastContribution} />
         </div>
 
         <div className="space-y-2">
-          <Label>What commitment are you willing to make during your stay? <span className="text-red-500">*</span></Label>
+          <Label htmlFor={fieldId('participationCommitment')}>
+            What commitment are you willing to make during your stay? <span className="text-red-500">*</span>
+          </Label>
           <p className="text-sm text-muted-foreground">
-            Tell us what level of participation the community can realistically expect from you.
+            4Seas is a community built by people who both learn and contribute. What level of participation can we
+            realistically expect from you during your residency?
           </p>
-          <CharacterLimitedTextarea
-            value={formData.contribution_commitment}
-            onChange={(value) => handleFieldChange('contribution_commitment', value)}
+          <Textarea
+            id={fieldId('participationCommitment')}
+            aria-invalid={!!errors.participationCommitment || undefined}
+            maxLength={5000}
+            value={formData.participationCommitment}
+            onChange={(e) => handleInputChange('participationCommitment', e.target.value)}
             placeholder="Describe your expected level of participation..."
+            rows={5}
+            className={isParticipationCommitmentOverLimit ? 'border-red-500 focus-visible:ring-red-500' : ''}
           />
+          <p className={`text-xs ${isParticipationCommitmentOverLimit ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}>
+            {participationCommitmentWordCount}/300 words {isParticipationCommitmentOverLimit && '- Please reduce your response'}
+          </p>
+          <FieldError message={errors.participationCommitment} />
         </div>
       </div>
 
+      {/* Social Links */}
       <div className="space-y-6">
         <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">SOCIAL LINKS</h2>
 
         <div className="space-y-2">
-          <Label>{SOCIAL_LINK_LABELS[programType]} <span className="text-red-500">*</span></Label>
-          <p className="text-sm text-muted-foreground">
-            At least provide one link, so that we can know a bit more from you.
-          </p>
+          <Label htmlFor={fieldId('primaryLink')}>
+            {track.apply.primaryLinkLabel} <span className="text-red-500">*</span>
+          </Label>
+          <p className="text-sm text-muted-foreground">At least provide one link, so that we can know a bit more from you.</p>
           <Input
-            value={formData.social_link}
-            onChange={(event) => handleFieldChange('social_link', event.target.value)}
+            id={fieldId('primaryLink')}
+            inputMode="url"
+            autoComplete="url"
+            aria-invalid={!!errors.primaryLink || undefined}
+            value={formData.primaryLink}
+            onChange={(e) => handleInputChange('primaryLink', e.target.value)}
             placeholder="https://..."
           />
+          <FieldError message={errors.primaryLink} />
         </div>
 
         <div className="space-y-2">
-          <Label>LinkedIn</Label>
+          <Label htmlFor={fieldId('linkedin')}>LinkedIn</Label>
           <Input
+            id={fieldId('linkedin')}
+            inputMode="url"
             value={formData.linkedin}
-            onChange={(event) => handleFieldChange('linkedin', event.target.value)}
+            onChange={(e) => handleInputChange('linkedin', e.target.value)}
             placeholder="https://linkedin.com/in/..."
           />
         </div>
 
         <div className="space-y-2">
-          <Label>{secondaryLink.label}</Label>
-          {secondaryLink.hint && <p className="text-sm text-muted-foreground">{secondaryLink.hint}</p>}
+          <Label htmlFor={fieldId('extraLink')}>{track.apply.extraLinkLabel}</Label>
+          {track.apply.extraLinkHint && <p className="text-sm text-muted-foreground">{track.apply.extraLinkHint}</p>}
           <Input
-            value={formData.github}
-            onChange={(event) => handleFieldChange('github', event.target.value)}
-            placeholder={secondaryLink.placeholder}
+            id={fieldId('extraLink')}
+            value={formData.extraLink}
+            onChange={(e) => handleInputChange('extraLink', e.target.value)}
+            placeholder={track.apply.extraLinkPlaceholder}
           />
         </div>
       </div>
 
+      {/* Content Studio */}
       <div className="space-y-6">
         <h2 className="text-sm font-semibold text-muted-foreground tracking-wider">CONTENT STUDIO</h2>
 
         <div className="space-y-2">
-          <Label>Do you have any plans to use the Content Studio during your residency?</Label>
+          <Label htmlFor={fieldId('contentStudioPlans')}>
+            Do you have any plans to use the Content Studio during your residency?
+          </Label>
           <p className="text-sm text-muted-foreground">
-            We have a fully equipped content studio available for residents. Let us know if you have any content creation plans (podcasts, videos, interviews, etc.)
+            We have a fully equipped content studio available for residents. Let us know if you have any content
+            creation plans (podcasts, videos, interviews, etc.)
           </p>
           <Textarea
-            value={formData.content_studio}
-            onChange={(event) => handleFieldChange('content_studio', event.target.value)}
+            id={fieldId('contentStudioPlans')}
+            maxLength={5000}
+            value={formData.contentStudioPlans}
+            onChange={(e) => handleInputChange('contentStudioPlans', e.target.value)}
             placeholder="Your content creation plans (optional)"
             rows={3}
           />
         </div>
       </div>
 
-      {/* Error Display */}
-      {error && (
+      {serverError && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-600 text-sm">{error}</p>
+          <p className="text-red-600 text-sm">{serverError}</p>
         </div>
       )}
 
-      {/* Submit Button */}
       <div className="pt-4">
-        <Button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full text-white"
-          style={{ backgroundColor: programColor }}
-        >
+        <Button type="submit" disabled={isSubmitting} className="w-full text-white" style={{ backgroundColor: track.accentColor }}>
           {isSubmitting ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />

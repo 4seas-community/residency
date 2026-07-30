@@ -1,0 +1,104 @@
+export const ADMIN_TRACK_IDS = ['crypto', 'art', 'longevity', 'other'] as const
+export type AdminTrackId = (typeof ADMIN_TRACK_IDS)[number]
+
+export const ALL_STATUSES = ['submitted', 'reviewing', 'interview', 'accepted', 'rejected', 'cancelled'] as const
+export type ApplicationStatus = (typeof ALL_STATUSES)[number]
+
+export const STATUS_CONFIG: Record<ApplicationStatus, { label: string; color: string; bgColor: string }> = {
+  submitted: { label: 'New', color: 'text-[var(--status-submitted-text)]', bgColor: 'bg-[var(--status-submitted-bg)]' },
+  reviewing: { label: 'Reviewing', color: 'text-[var(--status-reviewing-text)]', bgColor: 'bg-[var(--status-reviewing-bg)]' },
+  interview: { label: 'Interview', color: 'text-[var(--status-interview-text)]', bgColor: 'bg-[var(--status-interview-bg)]' },
+  accepted: { label: 'Accepted', color: 'text-[var(--status-accepted-text)]', bgColor: 'bg-[var(--status-accepted-bg)]' },
+  rejected: { label: 'Rejected', color: 'text-[var(--status-rejected-text)]', bgColor: 'bg-[var(--status-rejected-bg)]' },
+  // Candidate-initiated exit (declined offer / cancelled interview / no-show). No email, terminal.
+  cancelled: { label: 'Cancelled', color: 'text-[var(--status-cancelled-text)]', bgColor: 'bg-[var(--status-cancelled-bg)]' },
+}
+
+export type ContactMethod = 'telegram' | 'whatsapp'
+
+export type EmailType = 'interview' | 'accepted' | 'rejected' | 'movein_guide'
+export type EmailOutcome = 'sent' | 'failed' | 'skipped'
+
+/** Admin-edited replacement for a template email: plain-text body, html derived from it. */
+export interface EmailOverride {
+  subject: string
+  text: string
+}
+
+export interface Application {
+  id: string
+  created_at: string
+  track: AdminTrackId
+  status: ApplicationStatus
+  full_name: string
+  email: string
+  telegram_or_whatsapp: string
+  contact_method: ContactMethod | null
+  country: string
+  preferred_start_date: string // 'YYYY-MM-DD'
+  /** The working move-in date ('YYYY-MM-DD'): written at submission (= preferred), admin-adjustable. Never null (006 backfilled). */
+  confirmed_start_date: string
+  /** Legacy — scheduling is coordinated off-platform; DB column remains but is never read or written. */
+  interview_scheduled_at: string | null
+  /** Set only while status is accepted/rejected; null = legacy/direct decision. */
+  decided_after_interview: boolean | null
+  about: string
+  contribution: string
+  /** Nullable for applications submitted before migration 007. */
+  past_contribution: string | null
+  /** Nullable for applications submitted before migration 007. */
+  participation_commitment: string | null
+  primary_link: string
+  linkedin: string | null
+  extra_link: string | null
+  content_studio_plans: string | null
+  ip_hash: string
+  status_changed_at: string | null
+  status_changed_by: string | null
+}
+
+export interface ReviewNote {
+  id: string
+  application_id: string
+  author_name: string
+  note: string
+  created_at: string
+}
+
+export interface EmailLog {
+  id: string
+  application_id: string
+  email_type: EmailType
+  recipient: string
+  subject: string
+  outcome: EmailOutcome
+  /** Non-null only when the admin edited the email — null means the template was sent verbatim. */
+  body_text: string | null
+  resend_id: string | null
+  error: string | null
+  triggered_by: string
+  created_at: string
+}
+
+export interface InboundEmail {
+  id: string
+  application_id: string | null
+  email_log_id: string | null
+  message_id: string
+  in_reply_to: string | null
+  references_header: string | null
+  from_address: string
+  from_name: string | null
+  subject: string
+  body_text: string
+  received_at: string
+  mailbox_uid: number | null
+  mailbox_uidvalidity: string | null
+  matched_by: 'message_id' | 'sender' | 'unmatched'
+  created_at: string
+}
+
+/** Uniform result contract for every server action — errors never throw across the seam. */
+export type ActionResult<T = object> =
+  | ({ ok: true } & T)
+  | { ok: false; error: string; message?: string }

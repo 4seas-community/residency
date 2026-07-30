@@ -1,49 +1,33 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono, Playfair_Display } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
+import { Geist, Geist_Mono } from 'next/font/google'
+import { Toaster } from '@/components/ui/sonner'
+import { MotionProvider } from '@/components/shared/motion-provider'
+import { SITE } from '@/lib/content/site'
 import './globals.css'
-import { withBasePath } from '@/lib/paths'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
-const _playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-serif' });
+const _geist = Geist({ subsets: ['latin'] })
+const _geistMono = Geist_Mono({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: '4Seas Residency Programs | Chiang Mai',
-  description: '4Seas Residency is a community-based residency program in Chiang Mai for builders, artists, researchers, founders, creators, and long-term thinkers.',
-  generator: 'v0.app',
-  openGraph: {
-    title: '4Seas Residency Programs | Chiang Mai',
-    description: '4Seas Residency is a community-based residency program in Chiang Mai for builders, artists, researchers, founders, creators, and long-term thinkers.',
-    type: 'website',
-  },
+  title: SITE.title,
+  description: SITE.description,
+  metadataBase: process.env.NEXT_PUBLIC_SITE_URL ? new URL(process.env.NEXT_PUBLIC_SITE_URL) : undefined,
+  // public/ paths are not basePath-prefixed for us — see next.config.mjs
   icons: {
     icon: [
-      {
-        url: withBasePath('/4seas-favicon.jpg'),
-        sizes: '32x32',
-        type: 'image/jpeg',
-      },
-      {
-        url: withBasePath('/4seas-icon.jpg'),
-        sizes: '256x256',
-        type: 'image/jpeg',
-      },
+      { url: '/residency/icon-light-32x32.png', media: '(prefers-color-scheme: light)' },
+      { url: '/residency/icon-dark-32x32.png', media: '(prefers-color-scheme: dark)' },
     ],
-    apple: withBasePath('/4seas-icon.jpg'),
+    apple: '/residency/apple-icon.png',
   },
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`bg-background ${_playfair.variable}`}>
+    <html lang="en" className="bg-background">
       <body className="font-sans antialiased">
-        {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        <MotionProvider>{children}</MotionProvider>
+        <Toaster />
       </body>
     </html>
   )

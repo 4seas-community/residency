@@ -1,0 +1,369 @@
+'use client'
+
+// Previews the exact email the server will send: these dialogs and the server
+// share the same pure template/render functions — what you see is what is
+// sent, including admin edits (plain text, re-rendered through renderCustomEmail).
+
+import { useMemo, useState } from 'react'
+import { Loader2, RotateCcw } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { TRACKS, TRACK_IDS } from '@/lib/content/tracks'
+import { getEmailContent, renderCustomEmail, type EmailContent } from '@/lib/email/templates'
+import type { Application, ApplicationStatus, EmailLog, EmailOverride, EmailType } from '@/lib/types'
+import { STATUS_CONFIG } from '@/lib/types'
+import { decisionVariantLabel, formatDateTimeGMT7 } from '@/lib/applications/utils'
+
+const STATUS_EMAIL: Partial<Record<ApplicationStatus, EmailType>> = {
+  interview: 'interview',
+  accepted: 'accepted',
+  rejected: 'rejected',
+}
+
+const BTN_ACCENT = 'bg-[var(--admin-accent)] text-[var(--admin-ink)] hover:bg-[var(--admin-accent-hover)]'
+const BTN_OUTLINE =
+  'border-[var(--admin-border)] bg-transparent text-[var(--admin-text)] hover:bg-[var(--admin-soft)] hover:text-[var(--admin-text)]'
+const BTN_GHOST = 'text-[var(--admin-muted)] hover:bg-[var(--admin-soft)] hover:text-[var(--admin-text)]'
+const BTN_TOGGLE_ACTIVE =
+  'border-[var(--admin-border)] bg-[var(--admin-soft)] text-[var(--admin-text)] hover:bg-[var(--admin-soft)] hover:text-[var(--admin-text)]'
+
+interface ComposerProps {
+  application: Application
+  emailType: EmailType
+  /** Baseline content shown on open; defaults to the template for emailType. */
+  baseline?: EmailContent
+  title: string
+  description: React.ReactNode
+  /** Extra row rendered between the header and the Preview/Edit toggle. */
+  headerExtra?: React.ReactNode
+  isPending: boolean
+  onCancel: () => void
+  /** Footer buttons; override is undefined while content matches the baseline. */
+  renderFooter: (state: { override?: EmailOverride; canSend: boolean }) => React.ReactNode
+}
+
+function EmailComposerDialog({
+  application,
+  emailType,
+  baseline,
+  title,
+  description,
+  headerExtra,
+  isPending,
+  onCancel,
+  renderFooter,
+}: ComposerProps) {
+  const defaults = useMemo(
+    () => baseline ?? getEmailContent(emailType, application),
+    [baseline, emailType, application],
+  )
+  const [subject, setSubject] = useState(defaults.subject)
+  const [text, setText] = useState(defaults.text)
+  const [editing, setEditing] = useState(false)
+
+  const edited = subject !== defaults.subject || text !== defaults.text
+  const content = edited ? renderCustomEmail(subject, text) : defaults
+  const override: EmailOverride | undefined = edited ? { subject: subject.trim(), text: text.trim() } : undefined
+
+  // Preview-only: open links in a real tab instead of navigating the sandboxed
+  // iframe (where JS is disabled and sites like x.com refuse to render).
+  // The sent email HTML is untouched.
+  const previewHtml = content.html.replace('<body', '<head><base target="_blank"></head><body')
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && !isPending && onCancel()}>
+      <DialogContent className="flex max-h-[85vh] flex-col border-[var(--admin-border)] bg-[var(--admin-panel)] text-[var(--admin-text)] sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-[var(--admin-text)]">{title}</DialogTitle>
+          <DialogDescription className="text-[var(--admin-faint)]">{description}</DialogDescription>
+        </DialogHeader>
+
+        {headerExtra}
+
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" className={editing ? BTN_OUTLINE : BTN_TOGGLE_ACTIVE} onClick={() => setEditing(false)}>
+            Preview
+          </Button>
+          <Button size="sm" variant="outline" className={editing ? BTN_TOGGLE_ACTIVE : BTN_OUTLINE} onClick={() => setEditing(true)}>
+            Edit
+          </Button>
+          {edited && (
+            <>
+              <span className="text-xs text-[var(--admin-faint)]">Edited — this version will be sent.</span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className={BTN_GHOST}
+                onClick={() => {
+                  setSubject(defaults.subject)
+                  setText(defaults.text)
+                }}
+              >
+                Reset
+              </Button>
+            </>
+          )}
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-auto rounded-md border border-[var(--admin-border)]">
+          <div className="flex items-center gap-2 border-b border-[var(--admin-border)] bg-[var(--admin-soft)] px-4 py-2 text-sm">
+            <span className="shrink-0 text-[var(--admin-muted)]">Subject:</span>
+            {editing ? (
+              <Input
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className="h-7 border-[var(--admin-border)] bg-[var(--admin-ink)] text-sm text-[var(--admin-text)] focus-visible:ring-[var(--admin-accent)]"
+              />
+            ) : (
+              <span className="font-medium text-[var(--admin-text)]">{content.subject}</span>
+            )}
+          </div>
+          {editing ? (
+            <Textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              className="h-[45vh] w-full resize-none rounded-none border-0 bg-[var(--admin-ink)] text-sm leading-relaxed text-[var(--admin-text)] focus-visible:ring-0"
+            />
+          ) : (
+            <iframe
+              title="Email preview"
+              srcDoc={previewHtml}
+              className="h-[45vh] w-full bg-white"
+              sandbox="allow-popups allow-popups-to-escape-sandbox"
+            />
+          )}
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-2">
+          {renderFooter({ override, canSend: !!subject.trim() && !!text.trim() })}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+interface EmailPreviewDialogProps {
+  application: Application
+  targetStatus: ApplicationStatus
+  /** Initial variant — a concrete boolean for accepted/rejected, undefined for interview. */
+  decidedAfterInterview?: boolean
+  isPending: boolean
+  onConfirm: (sendEmail: boolean, override?: EmailOverride, decidedAfterInterview?: boolean) => void
+  onCancel: () => void
+}
+
+// Status-transition flow: confirm updates the status with or without the email.
+// For accepted/rejected the admin picks the decision variant here, via a
+// segmented toggle above the composer.
+export function EmailPreviewDialog({
+  application,
+  targetStatus,
+  decidedAfterInterview,
+  isPending,
+  onConfirm,
+  onCancel,
+}: EmailPreviewDialogProps) {
+  const [variant, setVariant] = useState(decidedAfterInterview)
+  // Preview the variant the admin picked BEFORE the row is updated — the server
+  // writes decided_after_interview in the same update that triggers the send,
+  // so rendering from this projection preserves preview = send.
+  const previewApplication = useMemo<Application>(
+    () => ({ ...application, decided_after_interview: variant ?? application.decided_after_interview }),
+    [application, variant],
+  )
+  const emailType = STATUS_EMAIL[targetStatus]
+  if (!emailType) return null
+  const isDecision = targetStatus === 'accepted' || targetStatus === 'rejected'
+  const title = isDecision
+    ? `Set status to “${STATUS_CONFIG[targetStatus].label}” · ${decisionVariantLabel(targetStatus, variant ?? null)}`
+    : `Set status to “${STATUS_CONFIG[targetStatus].label}”`
+  return (
+    <EmailComposerDialog
+      // Remount on variant change so the composer reloads the fresh template.
+      // In-progress edits are discarded — intentional: they were written for
+      // the other variant's email.
+      key={String(variant)}
+      application={previewApplication}
+      emailType={emailType}
+      title={title}
+      headerExtra={
+        isDecision ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[var(--admin-muted)]">Decision</span>
+            <Button
+              size="sm"
+              variant="outline"
+              className={variant ? BTN_OUTLINE : BTN_TOGGLE_ACTIVE}
+              onClick={() => setVariant(false)}
+            >
+              {targetStatus === 'accepted' ? 'Early (no interview)' : 'Before interview'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className={variant ? BTN_TOGGLE_ACTIVE : BTN_OUTLINE}
+              onClick={() => setVariant(true)}
+            >
+              After interview
+            </Button>
+          </div>
+        ) : undefined
+      }
+      description={
+        <>
+          The email below will be sent to{' '}
+          <span className="font-medium text-[var(--admin-text)]">{application.email}</span>. You can edit it before
+          sending.
+        </>
+      }
+      isPending={isPending}
+      onCancel={onCancel}
+      renderFooter={({ override, canSend }) => (
+        <>
+          <Button variant="ghost" className={BTN_GHOST} onClick={onCancel} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button variant="outline" className={BTN_OUTLINE} onClick={() => onConfirm(false, override, variant)} disabled={isPending}>
+            Update without sending
+          </Button>
+          <Button className={BTN_ACCENT} onClick={() => onConfirm(true, override, variant)} disabled={isPending || !canSend}>
+            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Update & send email'}
+          </Button>
+        </>
+      )}
+    />
+  )
+}
+
+interface ResendEmailDialogProps {
+  application: Application
+  log: EmailLog
+  isPending: boolean
+  onConfirm: (override?: EmailOverride) => void
+  onCancel: () => void
+}
+
+/** Preserve the Track used by a default email when an application is later reclassified. */
+function applicationAtLoggedTrack(application: Application, log: EmailLog): Application {
+  if (!log.subject || log.body_text) return application
+  const publicTrack = TRACK_IDS.find((trackId) => log.subject.includes(TRACKS[trackId].name))
+  if (publicTrack) return { ...application, track: publicTrack }
+  if (log.subject.includes('4Seas Residency')) return { ...application, track: 'other' }
+  return application
+}
+
+// Resend flow: opens with what that log actually sent (edited body if any),
+// editable before sending again. Replaces the old window.confirm.
+export function ResendEmailDialog({ application, log, isPending, onConfirm, onCancel }: ResendEmailDialogProps) {
+  const verb = log.outcome === 'sent' ? 'Resend' : 'Send'
+  const baseline = useMemo(() => {
+    const template = getEmailContent(log.email_type, applicationAtLoggedTrack(application, log))
+    return log.body_text ? renderCustomEmail(log.subject || template.subject, log.body_text) : template
+  }, [log, application])
+
+  return (
+    <EmailComposerDialog
+      application={application}
+      emailType={log.email_type}
+      baseline={baseline}
+      title={`${verb} email`}
+      description={
+        log.outcome === 'sent' ? (
+          <>
+            This email was already delivered to{' '}
+            <span className="font-medium text-[var(--admin-text)]">{log.recipient}</span> — confirming sends it again.
+            You can edit it first.
+          </>
+        ) : (
+          <>
+            This email will be sent to{' '}
+            <span className="font-medium text-[var(--admin-text)]">{log.recipient}</span>. You can edit it before
+            sending.
+          </>
+        )
+      }
+      isPending={isPending}
+      onCancel={onCancel}
+      renderFooter={({ override, canSend }) => (
+        <>
+          <Button variant="ghost" className={BTN_GHOST} onClick={onCancel} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button className={BTN_ACCENT} onClick={() => onConfirm(override)} disabled={isPending || !canSend}>
+            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : `${verb} email`}
+          </Button>
+        </>
+      )}
+    />
+  )
+}
+
+const OUTCOME_CLASS: Record<EmailLog['outcome'], string> = {
+  sent: 'text-[var(--admin-accent)]',
+  failed: 'text-red-600 dark:text-red-400',
+  skipped: 'text-[var(--admin-faint)]',
+}
+
+interface EmailLogDialogProps {
+  application: Application
+  log: EmailLog
+  onResend: () => void
+  onClose: () => void
+}
+
+// Read-only full view of a logged email: what was actually sent (edited body if
+// any), re-rendered from the same isomorphic module the server used.
+export function EmailLogDialog({ application, log, onResend, onClose }: EmailLogDialogProps) {
+  const content = useMemo(() => {
+    const template = getEmailContent(log.email_type, applicationAtLoggedTrack(application, log))
+    return log.body_text ? renderCustomEmail(log.subject || template.subject, log.body_text) : template
+  }, [log, application])
+  const previewHtml = content.html.replace('<body', '<head><base target="_blank"></head><body')
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="flex max-h-[90vh] flex-col border-[var(--admin-border)] bg-[var(--admin-panel)] text-[var(--admin-text)] sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="text-[var(--admin-text)]">
+            {log.email_type} email <span className={`text-sm font-semibold ${OUTCOME_CLASS[log.outcome]}`}>{log.outcome}</span>
+          </DialogTitle>
+          <DialogDescription className="text-[var(--admin-faint)]">
+            To <span className="font-medium text-[var(--admin-text)]">{log.recipient}</span> ·{' '}
+            {formatDateTimeGMT7(log.created_at)} (GMT+7) · by {log.triggered_by}
+            {log.error && <span className="mt-1 block break-all text-red-600 dark:text-red-400">{log.error}</span>}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-[var(--admin-border)]">
+          <p className="border-b border-[var(--admin-border)] bg-[var(--admin-soft)] px-4 py-2 text-sm text-[var(--admin-muted)]">
+            Subject: <span className="font-medium text-[var(--admin-text)]">{log.subject || content.subject}</span>
+          </p>
+          <iframe
+            title="Sent email"
+            srcDoc={previewHtml}
+            className="h-[65vh] w-full bg-white"
+            sandbox="allow-popups allow-popups-to-escape-sandbox"
+          />
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button variant="ghost" className={BTN_GHOST} onClick={onClose}>
+            Close
+          </Button>
+          <Button variant="outline" className={BTN_OUTLINE} onClick={onResend}>
+            <RotateCcw className="size-3.5" /> {log.outcome === 'sent' ? 'Resend' : 'Send'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

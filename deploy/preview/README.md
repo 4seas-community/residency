@@ -24,6 +24,17 @@ Required GitHub `preview` environment secrets:
 
 Runtime application secrets are stored only on the preview VM in
 `/etc/4seas-preview/residency.env`; they are not GitHub build secrets.
+The file must provide:
+
+- `DATABASE_URL` — the Supabase connection URL with
+  `options=-c search_path=residency_preview`
+- `ADMIN_PASSWORD` — generate with `openssl rand -base64 24`
+- `SESSION_SECRET` — generate with `openssl rand -hex 48`
+- `NEXT_PUBLIC_BASE_PATH=/residency`
+
+The authentication runtime reads `SESSION_SECRET` exactly. Do not rename it to
+`ADMIN_SESSION_SECRET`; doing so lets the login page render but makes every
+successful password submission fail while creating the signed session.
 
 The deploy receiver service definition is versioned beside this document.
 Its systemd write allow-list covers the complete residency release directory

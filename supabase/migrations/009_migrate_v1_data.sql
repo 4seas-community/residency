@@ -32,6 +32,7 @@ select
     when 'reviewing'        then 'reviewing'
     when 'shortlisted'      then 'reviewing'
     when 'waitlist'         then 'reviewing'
+    when 'waitlisted'       then 'reviewing'
     when 'interview_needed' then 'interview'
     when 'accepted'         then 'accepted'
     when 'approved'         then 'accepted'
@@ -55,7 +56,7 @@ select
   ),
   -- v1 stored this as free text in two formats: '2026-09-15' and 'June 15, 2026'.
   a.preferred_start_date::date,
-  coalesce(a.actual_start_date, a.preferred_start_date::date),
+  coalesce(a.actual_start_date::date, a.preferred_start_date::date),
   coalesce(nullif(trim(a.bio), ''), nullif(trim(a.about_and_contribution), ''), ''),
   coalesce(nullif(trim(a.proposed_contribution), ''), nullif(trim(a.about_and_contribution), ''), ''),
   -- v1 never asked either of migration 007's two questions.

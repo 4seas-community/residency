@@ -19,6 +19,7 @@ It never reads or writes the production application tables.
 Required GitHub `preview` environment secrets:
 
 - `PREVIEW_DEPLOY_TOKEN`
+- `PREVIEW_DEPLOY_URL` — stable exe.dev VM URL used for release uploads
 - `PREVIEW_URL`
 
 Runtime application secrets are stored only on the preview VM in

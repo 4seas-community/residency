@@ -1,0 +1,20 @@
+[Unit]
+Description=4Seas Residency preview deploy receiver
+After=network.target
+
+[Service]
+Type=simple
+User=deploy
+Group=deploy
+ExecStart=/usr/bin/python3 /usr/local/libexec/residency-deploy-receiver.py
+Restart=on-failure
+RestartSec=3
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# The receiver writes incoming archives and its privileged activation child
+# atomically updates releases/current inside the same mount namespace.
+ReadWritePaths=/srv/4seas-preview/residency
+
+[Install]
+WantedBy=multi-user.target

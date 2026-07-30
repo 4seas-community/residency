@@ -23,3 +23,8 @@ Required GitHub `preview` environment secrets:
 
 Runtime application secrets are stored only on the preview VM in
 `/etc/4seas-preview/residency.env`; they are not GitHub build secrets.
+
+The deploy receiver service definition is versioned beside this document.
+Its systemd write allow-list covers the complete residency release directory
+because the activation child updates `incoming`, `releases`, and the `current`
+symlink inside the receiver's mount namespace.

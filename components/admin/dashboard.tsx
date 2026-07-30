@@ -25,6 +25,7 @@ import { StatusMenuItems } from '@/components/admin/status-menu-items'
 import { addNote, logout, resendEmail, updateDates, updateStatus, updateTrack } from '@/lib/actions/admin'
 import type { DashboardData } from '@/lib/db'
 import { getEmailContent } from '@/lib/email/templates'
+import { serializeDateValues } from '@/lib/serialization'
 import { ADMIN_TRACK_IDS, STATUS_CONFIG } from '@/lib/types'
 import type { AdminTrackId, Application, ApplicationStatus, EmailLog, EmailOverride, InboundEmail, ReviewNote } from '@/lib/types'
 import { applicationsToCsv, gmt7Date } from '@/lib/applications/csv'
@@ -363,9 +364,10 @@ interface AdminDashboardProps {
 }
 
 export function AdminDashboard({ initialData, adminName }: AdminDashboardProps) {
-  const [applications, setApplications] = useState<Application[]>(initialData.applications)
-  const [notes, setNotes] = useState<ReviewNote[]>(initialData.notes)
-  const [emailLogs, setEmailLogs] = useState<EmailLog[]>(initialData.emailLogs)
+  const [normalizedInitialData] = useState(() => serializeDateValues(initialData))
+  const [applications, setApplications] = useState<Application[]>(normalizedInitialData.applications)
+  const [notes, setNotes] = useState<ReviewNote[]>(normalizedInitialData.notes)
+  const [emailLogs, setEmailLogs] = useState<EmailLog[]>(normalizedInitialData.emailLogs)
   const [inboundEmails] = useState<InboundEmail[]>(initialData.inboundEmails)
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')

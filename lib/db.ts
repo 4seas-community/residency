@@ -1,5 +1,6 @@
 import 'server-only'
 import { Pool } from 'pg'
+import { serializeDateValues } from '@/lib/serialization'
 import type { Application, EmailLog, InboundEmail, ReviewNote } from '@/lib/types'
 
 type DbResult = { data: unknown; error: Error | null; count?: number | null }
@@ -29,20 +30,6 @@ export function queryDb(text: string, values: unknown[] = []) {
 function ident(value: string): string {
   if (!/^[a-z_][a-z0-9_]*$/i.test(value)) throw new Error(`Invalid SQL identifier: ${value}`)
   return `"${value}"`
-}
-
-function serializeDatabaseValue(value: unknown): unknown {
-  if (value instanceof Date) return value.toISOString()
-  if (Array.isArray(value)) return value.map(serializeDatabaseValue)
-  if (value && typeof value === 'object') {
-    const prototype = Object.getPrototypeOf(value)
-    if (prototype === Object.prototype || prototype === null) {
-      return Object.fromEntries(
-        Object.entries(value).map(([key, nestedValue]) => [key, serializeDatabaseValue(nestedValue)]),
-      )
-    }
-  }
-  return value
 }
 
 class QueryBuilder implements PromiseLike<DbResult> {
@@ -170,7 +157,7 @@ class QueryBuilder implements PromiseLike<DbResult> {
 
       const result = await connection().query(sql, values)
       if (this.countOnly) return { data: null, error: null, count: result.rows[0]?.count ?? 0 }
-      return { data: serializeDatabaseValue(result.rows), error: null }
+      return { data: serializeDateValues(result.rows), error: null }
     } catch (error) {
       return { data: null, error: error instanceof Error ? error : new Error(String(error)) }
     }

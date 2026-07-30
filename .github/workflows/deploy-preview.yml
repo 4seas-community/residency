@@ -55,7 +55,7 @@ jobs:
       - name: Upload and activate release
         env:
           PREVIEW_DEPLOY_TOKEN: ${{ secrets.PREVIEW_DEPLOY_TOKEN }}
-          PREVIEW_URL: ${{ secrets.PREVIEW_URL }}
+          PREVIEW_DEPLOY_URL: ${{ secrets.PREVIEW_DEPLOY_URL }}
         run: |
           set -euo pipefail
           curl --http1.1 --fail --silent --show-error \
@@ -65,7 +65,7 @@ jobs:
             -H "X-Revision: ${GITHUB_SHA}" \
             -H "Content-Type: application/gzip" \
             --data-binary @residency-preview.tar.gz \
-            "${PREVIEW_URL}/__deploy/residency"
+            "${PREVIEW_DEPLOY_URL}/__deploy/residency"
 
       - name: Verify public preview
         env:

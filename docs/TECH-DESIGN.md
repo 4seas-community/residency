@@ -1,5 +1,7 @@
 # 技术方案 — 4Seas Residency 系统（v2 重建）
 
+> **文档状态：历史设计基线。** 本文保留 2026-07-21 的设计推导，不再代表现行生产部署。Vercel、Resend 和 cron 相关内容已被 VPS、Stalwart SMTP/IMAP 与 systemd 运维取代；Supabase PostgreSQL 仍是当前生产数据库。现行架构见 [`../ARCHITECTURE.md`](../ARCHITECTURE.md)。
+
 - **日期**: 2026-07-21
 - **上游文档**: `docs/PRD.md`（产品需求，已定稿）
 - **方法**: 第一性原理推导 + 深模块（deep module）设计语言

@@ -1,6 +1,8 @@
 # PRD — 4Seas 清迈社区 Residency 系统（v2 重建）
 
-- **状态**: ready-for-agent（本地文档；项目未配置 issue tracker，暂不发布到外部）
+> **文档状态：历史产品基线。** 产品需求和决策背景仍有参考价值，但其中的 Vercel、Resend 和 cron 部署描述已被当前 VPS + Stalwart 架构取代。现行运行事实以 [`../README.md`](../README.md)、[`../ARCHITECTURE.md`](../ARCHITECTURE.md) 和 [`MAINTENANCE-AND-DEPLOYMENT.md`](./MAINTENANCE-AND-DEPLOYMENT.md) 为准。
+
+- **状态**: historical baseline（已实施并经过后续架构调整）
 - **日期**: 2026-07-21（修订 v2）
 - **来源**: 基于第一性原理讨论对齐后的产品方案；现有 v0 生成项目（`4-seas-crypto-residency`）仅作内容层参考素材
 - **交付形态**: 全新 repo，同栈重建（Next.js 16 App Router + React 19 + TypeScript + Tailwind v4 + shadcn/ui + framer-motion + Supabase + Resend + Vercel）

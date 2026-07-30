@@ -1,46 +1,49 @@
 # CLAUDE.md
 
-Guidance for Claude Code when working in this repository.
+Guidance for coding agents working in this repository.
 
-## What this is
+## Current system
 
-4Seas residency programs (crypto / art / longevity): marketing site + application funnel + admin review dashboard. Full product spec in `docs/PRD.md`, technical design in `docs/TECH-DESIGN.md` — read them before structural changes.
+4Seas Residency serves the public program pages, application funnel, and admin review dashboard for the crypto, art, and longevity tracks.
 
-Stack: Next.js 16 App Router · React 19 · TypeScript · Tailwind v4 · shadcn/ui (`components/ui/`) · framer-motion · Supabase (Postgres only, no Auth) · Resend · Vercel. Package manager: pnpm.
+Current stack: Next.js 16 App Router · React 19 · TypeScript · Tailwind v4 · Supabase PostgreSQL · Stalwart SMTP/IMAP · systemd on the 4Seas VPS. Package manager: pnpm.
 
-**`basePath` is `/residency`** — the root of `4seas.xyz` is a separate Webflow site, so everything here is served under that one prefix. App-router paths therefore sit one level below the public URL: `app/[track]/page.tsx` answers `/residency/crypto`. Next prefixes routes, `<Link>` and `redirect()` on its own; literal strings do not get it for free — `public/` asset URLs, `metadata.icons`, and `NextResponse.redirect` in `middleware.ts` all spell `/residency` out.
+The canonical repository and issue tracker are on 4Seas Tea. GitHub is a read-only mirror used for preview automation.
 
-Public URLs: `/residency` · `/residency/[track]` · `/residency/[track]/apply` · `/residency/apply` (legacy redirect) · `/residency/admin` + `/residency/admin/login`. There are no API routes and no scheduled jobs.
+## Routes and commands
 
-## Commands
+The public `basePath` is `/residency`; the root of `4seas.xyz` is a separate site. Next.js prefixes routes, `<Link>` and `redirect()` automatically. Literal asset URLs and middleware redirects must include `/residency`.
 
 ```bash
-pnpm dev            # dev server
-pnpm build          # production build (type errors DO fail the build)
-pnpm typecheck      # tsc --noEmit — required before claiming work done
-pnpm seed           # seed 20 fake applications (needs .env.local)
+pnpm dev
+pnpm typecheck
+COREPACK_ENABLE_PROJECT_SPEC=0 NEXT_PUBLIC_BASE_PATH=/residency pnpm build
+pnpm seed
 ```
 
-There are no automated tests by design; verification is manual per `docs/PRD.md` testing decisions. There is no linter — `pnpm typecheck` is the only gate.
+## Load-bearing rules
 
-## Architecture rules (load-bearing)
+- The browser never connects directly to Supabase or the mailbox. Database access stays in server-only modules.
+- Every admin server action must call `requireAdmin()`. Middleware is navigation convenience, not the security boundary.
+- Production authentication uses `ADMIN_PASSWORD` and a signed session cookie. `SESSION_SECRET` must be configured.
+- Production data lives in Supabase PostgreSQL. The VPS-local PostgreSQL copy is recovery-only and does not receive production writes.
+- Outbound mail uses authenticated Stalwart SMTP. Applicant replies are synchronized through IMAP and displayed with the related application.
+- Preserve `inbound_emails`, email history, review notes, the six-state workflow, and the `/residency` base path when changing the admin UI.
+- Keep public copy in `lib/content/`; components receive track configuration instead of hardcoding per-track behavior.
+- Keep email templates isomorphic because the preview dialog and SMTP sender must render the same content. Email failure must not roll back a status change.
+- Preserve the public submission order: validation, honeypot, authoritative track-state check, rate limit, then insert.
+- `confirmed_start_date` is the admin-adjustable move-in date; `preferred_start_date` remains the applicant's original choice.
+- All user-visible times use GMT+7 helpers from `lib/applications/utils.ts`.
+- Schema changes require a new reviewed SQL migration, a validated backup, and production verification. Do not mutate production data as part of ordinary code cleanup.
+- Never commit credentials, connection strings, mailbox secrets, applicant data, backups, or production environment files.
 
-- **The browser never talks to Supabase.** The service-role client in `lib/db.ts` (`server-only`) is the single entry point, reached via server actions (`lib/actions/public.ts`, `lib/actions/admin.ts`) or `getDashboardData()` called directly by the `app/admin/page.tsx` Server Component. RLS is enabled with zero policies (default deny) — do not add policies or client-side Supabase.
-- **Every admin server entry must call `requireAdmin()` first.** `middleware.ts` is UX-only, not a security boundary. Auth = shared `ADMIN_PASSWORD` + HMAC cookie (`lib/auth.ts`); there is no Supabase Auth.
-- **All copy lives in `lib/content/`** (`tracks.ts` = per-track config incl. `state: open|coming_soon|closed`; `site.ts` = homepage/community links; `start-dates.ts` = 1st/15th options; `countries.ts` = country list). Components receive config slices as props — never hardcode per-track text in components.
-- **Email preview = email send**: `lib/email/templates.ts` is a pure isomorphic module used by BOTH the admin preview dialog and `lib/email/send.ts`. Keep it free of secrets and `server-only` imports. `sendApplicationEmail` = render + send + log in one call; it never throws. Admin edits are plain text re-rendered through `renderCustomEmail` (same module, same guarantee); `email_log.body_text` is non-null for any edited email (sent or skipped), and Retry resends it. The `rejected` template has two variants keyed off `application.decided_after_interview` (after-interview rejections append a promo-code paragraph).
-- **Status machine**: `submitted → reviewing → interview → accepted | rejected | cancelled` (6 statuses, `lib/types.ts`; `cancelled` = candidate-initiated exit at any stage, no email, distinct from admin-decided `rejected`). interview/accepted/rejected trigger the preview dialog; status update is decoupled from email outcome (email failure never rolls back status). **Every email the system sends passes through that dialog** — nothing is sent without an admin looking at it first. The `movein_guide` type still exists in `EmailType` and `lib/email/templates.ts`, but the daily cron that used to send it was removed, so nothing reaches it today.
-- **Decision/scheduling fields** (all admin-set, never emailed on change): `decided_after_interview` — chosen explicitly in the Accept/Reject variant submenu, defaults to after-interview iff the row is currently in `interview` status, null on non-terminal rows and legacy rows (rendered as the direct variant). Interview times are coordinated off-platform and not tracked; the legacy `interview_scheduled_at` DB column remains but is never read or written. `confirmed_start_date` — the working move-in date: written at submission (= `preferred_start_date`), admin-adjustable afterwards, never null (006 backfilled legacy rows, code assumes non-null with no fallbacks); `preferred_start_date` is never overwritten and remains visible in the drawer.
-- **Apply funnel order is deliberate** (`lib/actions/public.ts`): zod → honeypot (`website` field returns fake success, stores nothing) → authoritative track-state check → rate limit (3/hour per `sha256(ip + IP_HASH_SALT)`; raw IP never stored) → insert. No applicant confirmation email by design — the success page is the confirmation.
-- **Schema changes are manual SQL.** `supabase/migrations/*.sql` is run by hand in the Supabase SQL editor — no migration tooling. A schema change = new numbered SQL file + tell the user to run it.
-- **The Supabase project also holds the v1 archive.** `applications`/`review_notes`/`email_log` live alongside v1's `residency_applications`/`admin_comments` in project `zccyfyjjfptnntwarowy`. The archive tables are read-only history — 009 imported them and nothing writes to them. They still carry v1's permissive RLS policies, which must be dropped once v1 is off the air; see `docs/V1-MIGRATION-AND-CUTOVER.md` for that and for the remaining cutover steps.
+## Source layout
 
-## Conventions
+- `lib/content/`: program and site copy.
+- `lib/actions/`: server actions for public submission and admin workflows.
+- `lib/db.ts`: server-only PostgreSQL access.
+- `lib/email/`: SMTP sending, IMAP reply sync, and shared templates.
+- `components/admin/`: admin dashboard and application details.
+- `docs/PRD.md` and `docs/TECH-DESIGN.md`: historical v2 design baselines; current operational truth is `README.md`, `ARCHITECTURE.md`, and `docs/MAINTENANCE-AND-DEPLOYMENT.md`.
 
-- Every server action returns `ActionResult<T>` (`lib/types.ts`) — errors never throw across the client/server seam.
-- Admin components style exclusively via `var(--admin-*)` CSS variables, never Tailwind semantic colors; status colors come from `STATUS_CONFIG`.
-- All user-visible times are GMT+7 (Chiang Mai) — display via `formatDateTimeGMT7`, datetime inputs via the GMT+7 helpers in `lib/applications/utils.ts`.
-
-## Env vars
-
-All server-only except `NEXT_PUBLIC_SITE_URL` — see `.env.example`. Never expose `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `ADMIN_PASSWORD`, `SESSION_SECRET` to the client.
+Every change must at least pass typecheck and the production-base-path build. UI changes also require a real browser check; production fixes require service and user-visible verification after deployment.

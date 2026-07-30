@@ -26,6 +26,7 @@ import type {
   ReviewNote,
 } from '@/lib/types'
 import { defaultDecidedAfterInterview } from '@/lib/applications/utils'
+import { serializeDateValues } from '@/lib/serialization'
 
 // Statuses whose transition triggers the email preview dialog
 const EMAIL_STATUSES: ApplicationStatus[] = ['interview', 'accepted', 'rejected']
@@ -42,9 +43,10 @@ interface ApplicationPageProps {
 }
 
 export function ApplicationPage({ initialData, adminName }: ApplicationPageProps) {
-  const [application, setApplication] = useState<Application>(initialData.application)
-  const [notes, setNotes] = useState<ReviewNote[]>(initialData.notes)
-  const [emailLogs, setEmailLogs] = useState<EmailLog[]>(initialData.emailLogs)
+  const [normalizedInitialData] = useState(() => serializeDateValues(initialData))
+  const [application, setApplication] = useState<Application>(normalizedInitialData.application)
+  const [notes, setNotes] = useState<ReviewNote[]>(normalizedInitialData.notes)
+  const [emailLogs, setEmailLogs] = useState<EmailLog[]>(normalizedInitialData.emailLogs)
   const [inboundEmails] = useState<InboundEmail[]>(initialData.inboundEmails)
   const [pending, setPending] = useState<PendingStatusChange | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)

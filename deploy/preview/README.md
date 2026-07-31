@@ -2,14 +2,20 @@
 
 The preview environment follows this single-source flow:
 
-1. Developers push to the Gitea `main` branch.
+1. Developers push to the Gitea `test` branch.
 2. Gitea push-mirrors the repository to
    `github.com/4seas-community/residency`.
 3. GitHub Actions tests and builds the exact mirrored commit.
 4. The standalone release is sent to the dedicated exe.dev preview VM through
-   its token-protected, VM-local deployment receiver.
+   its token-protected, VM-local deployment receiver. The exe.dev edge proxy
+   cuts long-running request bodies, so the archive is uploaded as small
+   numbered parts; the receiver reassembles them and verifies the
+   whole-archive sha256 before activating.
 5. The VM activates the release atomically and restores the previous release
    when its health checks fail.
+
+`main` remains the production source and no longer auto-deploys anywhere;
+production releases stay manual per `docs/MAINTENANCE-AND-DEPLOYMENT.md`.
 
 The preview build keeps the production-compatible `/residency` base path. It
 uses the production Supabase project with an isolated `residency_preview`

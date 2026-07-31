@@ -2,7 +2,7 @@ name: Deploy preview
 
 on:
   push:
-    branches: [main]
+    branches: [test]
   workflow_dispatch:
 
 concurrency:
@@ -52,20 +52,32 @@ jobs:
           printf '%s\n' "${GITHUB_SHA}" > release/REVISION
           tar -C release -czf residency-preview.tar.gz .
 
+      # The exe.dev edge proxy cuts request bodies that stream for more than a
+      # few minutes, so the release travels as small numbered parts. The
+      # receiver reassembles them, verifies the whole-archive sha256, and
+      # activates on the final part.
       - name: Upload and activate release
         env:
           PREVIEW_DEPLOY_TOKEN: ${{ secrets.PREVIEW_DEPLOY_TOKEN }}
           PREVIEW_DEPLOY_URL: ${{ secrets.PREVIEW_DEPLOY_URL }}
         run: |
           set -euo pipefail
-          curl --http1.1 --fail --silent --show-error \
-            --max-time 300 \
-            --retry 3 --retry-all-errors \
-            -H "Authorization: Bearer ${PREVIEW_DEPLOY_TOKEN}" \
-            -H "X-Revision: ${GITHUB_SHA}" \
-            -H "Content-Type: application/gzip" \
-            --data-binary @residency-preview.tar.gz \
-            "${PREVIEW_DEPLOY_URL}/__deploy/residency"
+          sha256=$(sha256sum residency-preview.tar.gz | cut -d' ' -f1)
+          split -b 8m -d -a 3 residency-preview.tar.gz part.
+          parts=(part.*)
+          total=${#parts[@]}
+          index=0
+          for part in "${parts[@]}"; do
+            curl --http1.1 --fail --silent --show-error \
+              --max-time 150 \
+              --retry 5 --retry-all-errors \
+              -H "Authorization: Bearer ${PREVIEW_DEPLOY_TOKEN}" \
+              -H "X-Revision: ${GITHUB_SHA}" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @"${part}" \
+              "${PREVIEW_DEPLOY_URL}/__deploy/residency/part?index=${index}&total=${total}&sha256=${sha256}"
+            index=$((index + 1))
+          done
 
       - name: Verify public preview
         env:

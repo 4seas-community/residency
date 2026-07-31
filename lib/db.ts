@@ -1,10 +1,13 @@
 import 'server-only'
 import { Pool } from 'pg'
+import { configurePostgresDateParser } from '@/lib/postgres-date'
 import { serializeDateValues } from '@/lib/serialization'
 import type { Application, EmailLog, InboundEmail, ReviewNote } from '@/lib/types'
 
 type DbResult = { data: unknown; error: Error | null; count?: number | null }
 type Operation = 'select' | 'insert' | 'update'
+
+configurePostgresDateParser()
 
 let pool: Pool | null = null
 
